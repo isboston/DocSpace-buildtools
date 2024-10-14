@@ -131,7 +131,7 @@ REM echo ######## Build MySQL Server Installer ########
 iscc /Qp /S"byparam="signtool" sign /a /n "%publisher%" /t http://timestamp.digicert.com $f" "buildtools\install\win\MySQL Server Installer Runner.iss"
 
 REM echo ######## Build OpenResty ########
-%AdvancedInstaller% /edit buildtools\install\win\OpenResty.aip /SetVersion %BUILD_VERSION%.%BUILD_NUMBER%
+%AdvancedInstaller% /edit buildtools\install\win\OpenResty.aip /SetVersion %openresty_version%
 IF "%SignBuild%"=="true" (
 %AdvancedInstaller% /edit buildtools\install\win\OpenResty.aip /SetSig
 %AdvancedInstaller% /edit buildtools\install\win\OpenResty.aip /SetDigitalCertificateFile -file %onlyoffice_codesign_path% -password "%onlyoffice_codesign_password%"
