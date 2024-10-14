@@ -73,7 +73,7 @@ $prerequisites = @(
   @{
     download_allways = $false;
     name = "openresty-${openresty_version}.zip";
-  link = "https://openresty.org/download/openresty-${openresty_version}-win64.zip";
+    link = "https://openresty.org/download/openresty-${openresty_version}-win64.zip";
   }
 
   @{
