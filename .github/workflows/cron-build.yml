@@ -3,9 +3,9 @@ name: 4testing multiarch-cron-build
 on:
   schedule:
     - cron: '35 18 * * *'
- # push:
- #   branches:
- #     - 'feature/cron-build-packages'
+  push:
+    branches:
+      - 'master'
 
 jobs:
 
@@ -59,7 +59,7 @@ jobs:
           curl \
           -X POST \
           -u "${{ secrets.USERNAME}}:${{secrets.TOKEN}}" \
-          https://api.github.com/repos/ONLYOFFICE/DocSpace-buildtools/actions/workflows/71256583/dispatches \
+          https://api.github.com/repos/ONLYOFFICE/DocSpace-buildtools/actions/workflows/132270534/dispatches \
           -H "Accept: application/vnd.github.everest-preview+json" \
           --data '{
             "ref": "'"${{ github.ref_name }}"'",
