@@ -54,7 +54,8 @@ jobs:
       #     --data '{"event_type": "cron-trigger-action", "client_payload": { "branches": ${{ steps.list-branches.outputs.json_output }}}}'
 
       - name: Dispatch Action build packages
-        if: ${{ github.event_name == 'schedule' && (steps.changes.outputs.build_deb == 'true' || steps.changes.outputs.build_rpm == 'true') }}
+        # if: ${{ github.event_name == 'schedule' && (steps.changes.outputs.build_deb == 'true' || steps.changes.outputs.build_rpm == 'true') }}
+        if: ${{ steps.changes.outputs.build_deb == 'true' || steps.changes.outputs.build_rpm == 'true' }}
         run: |
           curl \
           -X POST \
