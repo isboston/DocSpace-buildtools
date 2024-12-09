@@ -15,6 +15,14 @@ on:
 
   workflow_dispatch:
     inputs:
+      deb_built:
+        type: boolean
+        description: "DEB packages were built"
+        default: false
+      rpm_built:
+        type: boolean
+        description: "RPM packages were built"
+        default: false
       centos9s:
          type: boolean
          description: 'CentOS 9 Stream'
@@ -39,14 +47,14 @@ on:
           type: boolean
           description: 'Ubuntu 24.04'
           default: true
-      fedora39:
-         type: boolean
-         description: 'Fedora 39'
-         default: true
       fedora40:
          type: boolean
          description: 'Fedora 40'
          default: true
+      fedora41:
+        type: boolean
+        description: 'Fedora 41'
+        default: true
 
 jobs:
   prepare:
@@ -66,7 +74,7 @@ jobs:
         run: |
           CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }})
           echo "debian_changed=$(echo "$CHANGED_FILES" | grep -q 'install-Debian' && echo true || echo false)" >> $GITHUB_ENV
-          echo "redhat_changed=$(echo "$CHANGED_FILES" | grep -q 'install-RedHat' && echo true || echo false)" >> $GITHUB_ENV 
+          echo "redhat_changed=$(echo "$CHANGED_FILES" | grep -q 'install-RedHat' && echo true || echo false)" >> $GITHUB_ENV           
 
       - name: Set matrix names
         id: set-matrix
@@ -79,19 +87,29 @@ jobs:
               {"execute": '${{ github.event.inputs.ubuntu2004 || true }}', "name": "Ubuntu20.04", "os": "ubuntu2004", "distr": "generic"},
               {"execute": '${{ github.event.inputs.ubuntu2204 || true }}', "name": "Ubuntu22.04", "os": "ubuntu2204", "distr": "generic"},
               {"execute": '${{ github.event.inputs.ubuntu2404 || true }}', "name": "Ubuntu24.04", "os": "ubuntu-24.04", "distr": "bento"},
-              {"execute": '${{ github.event.inputs.fedora39 || true }}', "name": "Fedora39", "os": "39-cloud-base", "distr": "fedora"},
-              {"execute": '${{ github.event.inputs.fedora40 || true }}', "name": "Fedora40", "os": "fedora-40", "distr": "bento"}
+              {"execute": '${{ github.event.inputs.fedora40 || true }}', "name": "Fedora40", "os": "fedora-40", "distr": "bento"},
+              {"execute": '${{ github.event.inputs.fedora41 || true }}', "name": "Fedora41", "os": "41-cloud-base", "distr": "fedora"}
             ]
-          }' | jq -c '.include')
-
-          matrix=$(jq -c --arg REDHAT_CHANGED "${{ env.redhat_changed }}" --arg DEBIAN_CHANGED "${{ env.debian_changed }}" '
-            { include: [.[] | select(
-                ($REDHAT_CHANGED == $DEBIAN_CHANGED and .execute == true) or
-                ($REDHAT_CHANGED == "true" and (.name | test("CentOS|Fedora"))) or
-                ($DEBIAN_CHANGED == "true" and (.name | test("Debian|Ubuntu"))))]
-            }' <<< "$matrix")
-
-          echo "matrix=${matrix}" >> $GITHUB_OUTPUT
+          }')                      
+        
+          matrix=$(echo "$matrix" | jq -c --argjson debuilt "${{ github.event.inputs.deb_built || false }}" --argjson rpmbuilt "${{ github.event.inputs.rpm_built || false }}" '
+            { include: [ .include[] | select(
+                  ($debuilt and (.name | test("Debian|Ubuntu"))) or
+                  ($rpmbuilt and (.name | test("CentOS|Fedora")))
+                )
+            ] }')
+        
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            matrix=$(echo "$matrix" | jq -c --arg REDHAT_CHANGED "${{ env.redhat_changed }}" --arg DEBIAN_CHANGED "${{ env.debian_changed }}" '
+              { include: [ .include[] | select(
+                    ($REDHAT_CHANGED == $DEBIAN_CHANGED and .execute == true) or
+                    ($REDHAT_CHANGED == "true" and (.name | test("CentOS|Fedora"))) or
+                    ($DEBIAN_CHANGED == "true" and (.name | test("Debian|Ubuntu")))
+                  )
+              ] }')
+          fi
+        
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
 
   vagrant-up:
     name: "Test DocSpace with ${{ matrix.name}}"
@@ -116,12 +134,12 @@ jobs:
           sudo wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
           sudo echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
           sudo apt update -y
-          sudo apt install vagrant virtualbox -y
+          sudo apt install vagrant virtualbox -y          
 
       - name: Free Disk Space
         run: |
           sudo rm -rf /usr/local/lib/android /opt/ghc
-          sudo docker image prune --all --force
+          sudo docker image prune --all --force          
 
       - name: "Test production scripts with ${{matrix.name}}"
         if: ${{ github.event_name == 'schedule' }}
@@ -140,12 +158,12 @@ jobs:
             RAM='8192' \
             CPU='3' \
             ARGUMENTS="-arg '--skiphardwarecheck true'" \
-            vagrant up
+            vagrant up            
           on_retry_command: |
             echo "RUN CLEAN UP: Destroy vagrant and one more try"
             cd tests/vagrant
             sleep 10
-            vagrant destroy --force
+            vagrant destroy --force            
 
       - name: "Test Local scripts with ${{matrix.name}}"
         if: ${{ github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' }}
@@ -165,9 +183,9 @@ jobs:
             DOWNLOAD_SCRIPT='-ds false' \
             TEST_REPO='-tr true' \
             ARGUMENTS="-arg '--skiphardwarecheck true --localscripts true'" \
-            vagrant up
+            vagrant up            
           on_retry_command: |
             echo "RUN CLEAN UP: Destroy vagrant and one more try"
             cd tests/vagrant
             sleep 10
-            vagrant destroy --force
+            vagrant destroy --force            

@@ -42,7 +42,7 @@ jobs:
       - name: Free Disk Space
         run: |
           sudo rm -rf /usr/local/lib/android /opt/ghc
-          sudo docker image prune --all --force
+          sudo docker image prune --all --force          
 
       - name: Login to DockerHub
         uses: docker/login-action@v2
@@ -71,7 +71,7 @@ jobs:
           --set *.args.BUILD_NUMBER=${{github.run_number}} \
           --push
 
-          echo "version=${DOCKER_TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${DOCKER_TAG}" >> "$GITHUB_OUTPUT"          
         shell: bash
 
       - name: Run zap action if needed
@@ -87,4 +87,15 @@ jobs:
                  --repo ONLYOFFICE/DocSpace \
                  -f branch=${{ matrix.branch }} \
                  -f version=${VERSION}
-           fi
+           fi           
+
+      - name: Dispatch Action
+        run: |
+          echo "OCI docker test on branch ${{ matrix.branch }}"
+
+          curl \
+          -X POST \
+          -u "${{ secrets.USERNAME}}:${{secrets.TOKEN}}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          https://api.github.com/repos/ONLYOFFICE/DocSpace-buildtools/dispatches \
+          -d '{"event_type": "oci-docker-install-trigger", "client_payload": {"branch": "'"${{ matrix.branch }}"'"}}'          
