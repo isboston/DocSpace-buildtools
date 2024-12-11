@@ -2,7 +2,7 @@ name: 4testing multiarch-cron-build
 
 on:
   schedule:
-    - cron: '35 18 * * *'
+    - cron: '0 10 * * *'
   push:
     branches:
       - 'master'
@@ -16,57 +16,93 @@ jobs:
       - name: Check out the code
         uses: actions/checkout@v2
 
-      - name: List Branches
+      - name: Fetch and List Branches
         id: list-branches
         run: |
-          all_branches=$(git ls-remote -hq | sed -n 's/^[0-9a-f]\{40\}\s\+refs\/heads\//''/p')
+          git fetch --all --prune
           matching_branches=""
+          all_branches=$(git branch -r | sed 's|origin/||')
 
           for branch in $all_branches; do
-            if [[ $branch =~ ^release/v[0-9]+ || $branch =~ ^hotfix/v[0-9]+ || $branch == "master" ]]; then
+            if [[ $branch =~ ^release/v[0-9]+ || $branch =~ ^hotfix/v[0-9]+ || $branch == "develop" ]]; then
               matching_branches="${matching_branches},\"${branch}\""
             fi
-          done          
-        
+          done
+
           matching_branches=${matching_branches#,}
-          echo "json_output=[${matching_branches}]" >> $GITHUB_OUTPUT
+          json_output="[${matching_branches}]"
 
-          last_branch=$(echo ${matching_branches} | awk -F, '{print $NF}' | sed 's/"//g')
-          echo "last_branch=${last_branch}" >> $GITHUB_OUTPUT
+          echo "Matching branches: $matching_branches"
+          echo "JSON output: $json_output"
 
-      - name: Determine Changes
+          echo "branches=$(echo $matching_branches | tr ',' ' ')" >> $GITHUB_OUTPUT
+          echo "json_output=$json_output" >> $GITHUB_OUTPUT          
+
+      - name: Debug Output
+        run: |
+          echo "Branches: ${{ steps.list-branches.outputs.branches }}"
+          echo "JSON Output: ${{ steps.list-branches.outputs.json_output }}"          
+
+      - name: Determine Priority Branch
+        id: priority
+        run: |
+          IFS=' ' read -ra BRANCHES <<< "${{ steps.list-branches.outputs.branches }}"
+
+          for branch in "${BRANCHES[@]}"; do
+            if git log --since=yesterday origin/$branch --pretty=format:"%h" | grep -q .; then
+              echo "target_branch=$branch" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+          done
+          echo "target_branch=" >> $GITHUB_OUTPUT          
+
+      - name: Check Changes
         id: changes
         run: |
+          if [ -z "${{ steps.priority.outputs.target_branch }}" ]; then
+            echo "No target branch found, skipping builds."
+            echo "build_deb=false" >> $GITHUB_OUTPUT
+            echo "build_rpm=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
           git fetch origin
-          CHANGED_FILES=$(git log --since=midnight --name-only --pretty=format: | sort | uniq)
+          CHANGED_FILES=$(git log --since=yesterday --name-only --pretty=format: | sort | uniq)
           echo "build_deb=$(echo "${CHANGED_FILES}" | grep -qE '^install/common/|^install/deb/' && echo true || echo false)" >> $GITHUB_OUTPUT
           echo "build_rpm=$(echo "${CHANGED_FILES}" | grep -qE '^install/common/|^install/rpm/' && echo true || echo false)" >> $GITHUB_OUTPUT          
 
-      # - name: Dispatch Action
-      #   run: |
-      #     echo "${{ steps.list-branches.outputs.json_output }}"
+      - name: Dispatch Action
+        run: |
+          json_branches='["develop","hotfix/v3.0.1","release/v3.0.0"]'
 
+          json_payload=$(jq -n \
+            --argjson branches "$json_branches" \
+            '{"event_type": "cron-trigger-action", "client_payload": { "branches": $branches }}')
+
+          curl \
+            -X POST \
+            -u "${{ secrets.USERNAME }}:${{ secrets.TOKEN }}" \
+            "https://api.github.com/repos/ONLYOFFICE/DocSpace-buildtools/dispatches" \
+            -H "Accept: application/vnd.github.everest-preview+json" \
+            --data "$json_payload"          
+
+      # - name: Dispatch Action build packages
+      #   # if: ${{ github.event_name == 'schedule' && (steps.changes.outputs.build_deb == 'true' || steps.changes.outputs.build_rpm == 'true') }}
+      #   if: ${{ steps.priority.outputs.target_branch != '' && (steps.changes.outputs.build_deb == 'true' || steps.changes.outputs.build_rpm == 'true') }}
+      #   run: |
       #     curl \
       #     -X POST \
       #     -u "${{ secrets.USERNAME}}:${{secrets.TOKEN}}" \
-      #     "https://api.github.com/repos/ONLYOFFICE/DocSpace-buildtools/dispatches" \
+      #     https://api.github.com/repos/ONLYOFFICE/DocSpace-buildtools/actions/workflows/71256583/dispatches \
       #     -H "Accept: application/vnd.github.everest-preview+json" \
-      #     --data '{"event_type": "cron-trigger-action", "client_payload": { "branches": ${{ steps.list-branches.outputs.json_output }}}}'
-
-      - name: Dispatch Action build packages
-        # if: ${{ github.event_name == 'schedule' && (steps.changes.outputs.build_deb == 'true' || steps.changes.outputs.build_rpm == 'true') }}
-        if: ${{ steps.changes.outputs.build_deb == 'true' || steps.changes.outputs.build_rpm == 'true' }}
-        run: |
-          curl \
-          -X POST \
-          -u "${{ secrets.USERNAME}}:${{secrets.TOKEN}}" \
-          https://api.github.com/repos/ONLYOFFICE/DocSpace-buildtools/actions/workflows/132270534/dispatches \
-          -H "Accept: application/vnd.github.everest-preview+json" \
-          --data '{
-            "ref": "'"${{ github.ref_name }}"'",
-            "inputs": {
-              "deb_built": "'"${{ steps.changes.outputs.build_deb }}"'",
-              "rpm_built": "'"${{ steps.changes.outputs.build_rpm }}"'"
-            }
-          }'          
+      #     --data '{
+      #       "ref": "'"${{ github.ref_name }}"'",
+      #       "inputs": {
+      #         "deb_built": "'"${{ steps.changes.outputs.build_deb }}"'",
+      #         "rpm_built": "false",
+      #         "branch-buildtools": "hotfix/v3.0.1",
+      #         "branch-client": "hotfix/v3.0.1",
+      #         "branch-server": "hotfix/v3.0.1"
+      #       }
+      #     }'
 
