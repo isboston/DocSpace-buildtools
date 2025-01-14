@@ -62,6 +62,7 @@ REV=${REV:-"7"}
 
 REMI_DISTR_NAME="enterprise"
 RPMFUSION_DISTR_NAME="el"
+RABBIT_DISTR_NAME="el"
 MYSQL_DISTR_NAME="el"
 OPENRESTY_DISTR_NAME="centos"
 SUPPORTED_FEDORA_FLAG="true"
@@ -70,12 +71,22 @@ if [ "$DIST" == "fedora" ]; then
 	REMI_DISTR_NAME="fedora"
 	OPENRESTY_DISTR_NAME="fedora"
 	RPMFUSION_DISTR_NAME="fedora"
+	RABBIT_DISTR_NAME="fedora"
 	MYSQL_DISTR_NAME="fc"
 	OPENRESTY_REV=$([ "$REV" -ge 37 ] && echo 36 || echo "$REV")
 
 	FEDORA_SUPP=$(curl https://docs.fedoraproject.org/en-US/releases/ | awk '/Supported Releases/,/EOL Releases/' | grep -oP 'F\d+' | tr -d 'F')
 	[ ! "$(echo "$FEDORA_SUPP" | grep "$REV")" ] && SUPPORTED_FEDORA_FLAG="false"
 fi
+
+REDIS_PACKAGE=$( [[ "$REV" == "10" || "$REV" == "41" ]] && echo "valkey" || echo "redis" )
+if [ "$REV" = "10" ]; then # Temporary fix due to inaccessibility of repositories for CentOS 10
+	OPENRESTY_REV=9; REV=9; YUM_EXTRA_PARAMS="--nogpgcheck";
+	yum -y install	https://mirror.stream.centos.org/9-stream/AppStream/x86_64/os/Packages/libXScrnSaver-1.2.3-10.el9.x86_64.rpm \
+					https://mirror.stream.centos.org/9-stream/AppStream/x86_64/os/Packages/xorg-x11-server-common-1.20.11-27.el9.x86_64.rpm \
+					https://mirror.stream.centos.org/9-stream/AppStream/x86_64/os/Packages/xorg-x11-server-Xvfb-1.20.11-27.el9.x86_64.rpm \
+					https://dl.fedoraproject.org/pub/epel/9/Everything/x86_64/Packages/c/cabextract-1.9.1-3.el9.x86_64.rpm
+fi 
 
 # Check if it's Centos less than 8 or Fedora release is out of service
 if { [[ "${DIST}" == "centos" && "${REV}" -lt 9 ]] || \
