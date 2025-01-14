@@ -8,7 +8,10 @@ on:
       - 'install/OneClickInstall/install-Debian/**'
       - 'install/OneClickInstall/install-RedHat/**'
       - 'install/OneClickInstall/install-Debian.sh'
-      - 'install/OneClickInstall/install-RedHat.sh'
+      - 'install/OneClickInstall/install-RedHat.sh'  
+  push:
+    branches:
+      - 'feature/centos10'
 
   schedule:
     - cron: '00 20 * * 6'  # At 23:00 on Saturday.
@@ -26,7 +29,7 @@ on:
       centos9s:
          type: boolean
          description: 'CentOS 9 Stream'
-         default: true
+         default: false
       centos10s:
          type: boolean
          description: 'CentOS 10 Stream'
@@ -34,23 +37,23 @@ on:
       debian12:
          type: boolean
          description: 'Debian 12'
-         default: true
+         default: false
       ubuntu2204:
          type: boolean
          description: 'Ubuntu 22.04'
-         default: true
+         default: false
       ubuntu2404:
           type: boolean
           description: 'Ubuntu 24.04'
-          default: true
+          default: false
       fedora40:
          type: boolean
          description: 'Fedora 40'
-         default: true
+         default: false
       fedora41:
         type: boolean
         description: 'Fedora 41'
-        default: true
+        default: false
 
 jobs:
   prepare:
