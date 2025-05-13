@@ -76,6 +76,20 @@ jobs:
           echo "::notice ::DEB_BUILD=$DEB_BUILD"
           echo "::notice ::RPM_BUILD=$RPM_BUILD"
 
+          DEBUILD_BOOL=true
+          RPMBUILD_BOOL=true
+
+          if [[ "$DEB_BUILD" == "false" ]]; then
+            DEBUILD_BOOL=false
+          fi
+
+          if [[ "$RPM_BUILD" == "false" ]]; then
+            RPMBUILD_BOOL=false
+          fi
+
+          echo "::notice ::DEB_BUILD=$DEB_BUILD  → debuild=$DEBUILD_BOOL"
+          echo "::notice ::RPM_BUILD=$RPM_BUILD  → rpmbuild=$RPMBUILD_BOOL"
+
           matrix=$(echo '{
             "include": [
               {"execute": '${{ github.event.inputs.rhel9 || true }}', "name": "RHEL 9", "os": "rhel9", "distr": "generic"},
@@ -96,10 +110,9 @@ jobs:
           echo "$matrix"
           echo "::endgroup::"
 
-          # ✅ ВНИМАНИЕ: без двойных кавычек вокруг подстановки
           matrix=$(jq -c \
-            --argjson debuild $( [ "$DEB_BUILD" == "false" ] && echo false || echo true ) \
-            --argjson rpmbuild $( [ "$RPM_BUILD" == "false" ] && echo false || echo true ) \
+            --argjson debuild "$DEBUILD_BOOL" \
+            --argjson rpmbuild "$RPMBUILD_BOOL" \
             '{include:[.include[] | select(.execute and (
               ($debuild and (.name | test("Debian|Ubuntu"))) or
               ($rpmbuild and (.name | test("CentOS|Fedora|RHEL")))
