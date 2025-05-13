@@ -105,13 +105,13 @@ jobs:
 
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
             matrix=$(jq -c --arg REDHAT_CHANGED "${{ env.redhat_changed }}" --arg DEBIAN_CHANGED "${{ env.debian_changed }}" \
-            '{include:[.include[]|select(
+            '{include:[.include[]|select(.execute and(
               ($REDHAT_CHANGED==$DEBIAN_CHANGED) or
               ($REDHAT_CHANGED=="true" and(.name|test("CentOS|Fedora|RHEL"))) or
               ($DEBIAN_CHANGED=="true" and(.name|test("Debian|Ubuntu")))
             )]}' <<< "$matrix")
           fi
-
+        
           echo "matrix=$matrix" >> $GITHUB_OUTPUT
 
   vagrant-up:
