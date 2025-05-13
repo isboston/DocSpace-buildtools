@@ -83,6 +83,8 @@ jobs:
             ]
           }')            
 
+          matrix=$(echo "$matrix" | jq '(.include[].execute) |= (tostring | test("^true$"))')
+
           matrix=$(jq -c --argjson debuild "${{ github.event.inputs.deb_build||true }}" --argjson rpmbuild "${{ github.event.inputs.rpm_build||true }}" \
           '{include:[.include[]|select(.execute and(
             ($debuild and(.name|test("Debian|Ubuntu"))) or
