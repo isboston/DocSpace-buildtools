@@ -83,21 +83,16 @@ jobs:
             ]
           }')            
 
-          matrix=$(echo "$matrix" | sed -E "s/'(true|false)'/\\1/g")
-          if [[ "${{ github.event.inputs.deb_build }}" == "true" ]]; then
-            matrix=$(echo "$matrix" | jq '
-              .include |= map(
-                if (.name | test("Debian|Ubuntu")) then .execute = true else . end
-              )')
-          fi
-          if [[ "${{ github.event.inputs.rpm_build }}" == "true" ]]; then
-            matrix=$(echo "$matrix" | jq '
-              .include |= map(
-                if (.name | test("CentOS|Fedora|RHEL")) then .execute = true else . end
-              )')
-          fi
-
-          matrix=$(echo "$matrix" | jq -c '{include: [.include[] | select(.execute)]}')
+          matrix=$(echo "$matrix" | sed -E "s/'(true|false)'/\\1/g" | jq -c '
+            .include |= map(
+              if (.name | test("Debian|Ubuntu")) and ("${{ github.event.inputs.deb_build }}" == "true")
+              then .execute = true
+              elif (.name | test("CentOS|Fedora|RHEL")) and ("${{ github.event.inputs.rpm_build }}" == "true")
+              then .execute = true
+              else .
+              end
+            ) | {include: [.include[] | select(.execute)]}
+          ')
 
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
             matrix=$(jq -c --arg REDHAT_CHANGED "${{ env.redhat_changed }}" --arg DEBIAN_CHANGED "${{ env.debian_changed }}" \
