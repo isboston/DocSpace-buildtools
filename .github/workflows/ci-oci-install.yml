@@ -83,7 +83,13 @@ jobs:
             ]
           }')            
 
-          matrix=$(echo "$matrix" | jq '(.include[].execute) |= (tostring | test("^true$"))')
+          # ──► удаляем одинарные кавычки вокруг true/false
+          matrix=$(echo "$matrix" | sed -E "s/'(true|false)'/\\1/g")
+
+          # ──► отладка: покажем, что теперь JSON валидный
+          echo "::group::[DEBUG] matrix after sed"
+          printf '%s\n' "$matrix"
+          echo "::endgroup::"
 
           matrix=$(jq -c --argjson debuild "${{ github.event.inputs.deb_build||true }}" --argjson rpmbuild "${{ github.event.inputs.rpm_build||true }}" \
           '{include:[.include[]|select(.execute and(
