@@ -83,12 +83,7 @@ jobs:
             ]
           }')            
 
-          # удаляем одинарные кавычки вокруг true/false (это нужно оставить)
           matrix=$(echo "$matrix" | sed -E "s/'(true|false)'/\\1/g")
-
-          # • .execute=true   — остаётся как есть (ручной выбор ОС)
-          # • deb_build=true  — добавляем все Debian/Ubuntu
-          # • rpm_build=true  — добавляем все CentOS/Fedora/RHEL
           matrix=$(jq -c \
             --argjson debuild "${{ github.event.inputs.deb_build || true }}" \
             --argjson rpmbuild "${{ github.event.inputs.rpm_build || true }}" \
