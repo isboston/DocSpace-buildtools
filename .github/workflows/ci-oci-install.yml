@@ -85,10 +85,10 @@ jobs:
 
           matrix=$(echo "$matrix" | sed -E "s/'(true|false)'/\\1/g")
           matrix=$(jq -c --argjson debuild "${{ github.event.inputs.deb_build||true }}" --argjson rpmbuild "${{ github.event.inputs.rpm_build||true }}" \
-          '{include:[.include[]|select(.execute
-            or ($debuild and(.name|test("Debian|Ubuntu"))) or
-            ($rpmbuild and(.name|test("CentOS|Fedora|RHEL"))))
-          ]}' <<< "$matrix")
+          '{include:[.include[]|select(.execute or
+            ($debuild and(.name|test("Debian|Ubuntu"))) or
+            ($rpmbuild and(.name|test("CentOS|Fedora|RHEL")))
+          )]}' <<< "$matrix")
 
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
             matrix=$(jq -c --arg REDHAT_CHANGED "${{ env.redhat_changed }}" --arg DEBIAN_CHANGED "${{ env.debian_changed }}" \
