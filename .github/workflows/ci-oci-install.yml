@@ -84,16 +84,12 @@ jobs:
           }')
 
           matrix=$(echo "$matrix" | sed -E "s/'(true|false)'/\\1/g")
-
-          # Авто-включение всех DEB-дистрибутивов, если deb_build включен
           if [[ "${{ github.event.inputs.deb_build }}" == "true" ]]; then
             matrix=$(echo "$matrix" | jq '
               .include |= map(
                 if (.name | test("Debian|Ubuntu")) then .execute = true else . end
               )')
           fi
-
-          # Авто-включение всех RPM-дистрибутивов, если rpm_build включен
           if [[ "${{ github.event.inputs.rpm_build }}" == "true" ]]; then
             matrix=$(echo "$matrix" | jq '
               .include |= map(
@@ -109,7 +105,7 @@ jobs:
               ($REDHAT_CHANGED==$DEBIAN_CHANGED) or
               ($REDHAT_CHANGED=="true" and(.name|test("CentOS|Fedora|RHEL"))) or
               ($DEBIAN_CHANGED=="true" and(.name|test("Debian|Ubuntu")))
-            )]}' <<< "$matrix")
+            ))]}' <<< "$matrix")
           fi
         
           echo "matrix=$matrix" >> $GITHUB_OUTPUT
