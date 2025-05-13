@@ -118,8 +118,7 @@ jobs:
               ($rpmbuild and (.name | test("CentOS|Fedora|RHEL")))
             ))]}' <<< "$matrix")
 
-          echo "::notice ::DEB_BUILD=$DEB_BUILD  → debuild=$debuild"
-          echo "::notice ::RPM_BUILD=$RPM_BUILD  → rpmbuild=$rpmbuild"
+          echo "::notice ::→ passed to jq: debuild=$DEBUILD_BOOL, rpmbuild=$RPMBUILD_BOOL"
 
           # Пулл-реквест фильтр
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
@@ -130,6 +129,10 @@ jobs:
               ($DEBIAN_CHANGED=="true" and(.name|test("Debian|Ubuntu")))
             ))]}' <<< "$matrix")
           fi
+          
+          echo "::group::[DEBUG] Final matrix"
+          echo "$matrix" | jq .
+          echo "::endgroup::"
 
           echo "matrix=$matrix" >> $GITHUB_OUTPUT
 
