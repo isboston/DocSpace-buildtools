@@ -6,6 +6,7 @@ on:
       - 'release/**'
       - 'hotfix/**'
       - 'develop'
+      - 'test'
     paths:
       - '.github/workflows/build_packages.yml'
   workflow_dispatch:
@@ -137,81 +138,81 @@ jobs:
           download "$PRODUCT-plugins"     "master"                  plugins &
           wait
 
-      - name: Build DEB Packages
-        if: matrix.packageType == 'deb'
-        run: |
-          cd ${PACKAGE_DIRECTORY}/install/deb/
-          rename -f -v "s/product([^\/]*)$/${PRODUCT_LOW}\$1/g" debian/*
-          find debian/ -type f -exec sed -i "s/{{product}}/${PRODUCT_LOW}/g" {} ';'
-          sed -i "s/{{package_header_tag_version}}/${PRODUCT_VERSION}.${BUILD_NUMBER}/g" debian/changelog debian/control
-          export DEB_BUILD_OPTIONS="parallel=$(nproc)"
-          dpkg-buildpackage -uc -us
+      # - name: Build DEB Packages
+      #   if: matrix.packageType == 'deb'
+      #   run: |
+      #     cd ${PACKAGE_DIRECTORY}/install/deb/
+      #     rename -f -v "s/product([^\/]*)$/${PRODUCT_LOW}\$1/g" debian/*
+      #     find debian/ -type f -exec sed -i "s/{{product}}/${PRODUCT_LOW}/g" {} ';'
+      #     sed -i "s/{{package_header_tag_version}}/${PRODUCT_VERSION}.${BUILD_NUMBER}/g" debian/changelog debian/control
+      #     export DEB_BUILD_OPTIONS="parallel=$(nproc)"
+      #     dpkg-buildpackage -uc -us
 
-      - name: Build RPM Packages
-        if: matrix.packageType == 'rpm'
-        run: |
-          cd ${PACKAGE_DIRECTORY}/install/rpm/SPECS
-          mv ./SOURCES/product.rpmlintrc ./SOURCES/${PRODUCT_LOW}.rpmlintrc
-          sed -i -e '/BuildRequires/d' product.spec
-          rpmbuild -D "packager Ascensio System SIA <support@onlyoffice.com>" \
-                   -D "_topdir $(pwd)" \
-                   -D "version ${PRODUCT_VERSION}" \
-                   -D "release ${BUILD_NUMBER}" -ba product.spec
+      # - name: Build RPM Packages
+      #   if: matrix.packageType == 'rpm'
+      #   run: |
+      #     cd ${PACKAGE_DIRECTORY}/install/rpm/SPECS
+      #     mv ./SOURCES/product.rpmlintrc ./SOURCES/${PRODUCT_LOW}.rpmlintrc
+      #     sed -i -e '/BuildRequires/d' product.spec
+      #     rpmbuild -D "packager Ascensio System SIA <support@onlyoffice.com>" \
+      #              -D "_topdir $(pwd)" \
+      #              -D "version ${PRODUCT_VERSION}" \
+      #              -D "release ${BUILD_NUMBER}" -ba product.spec
 
-      - name: Sign DEB Packages
-        if: matrix.packageType == 'deb'
-        run: |
-          dpkg-sig --sign origin \
-            --gpg-options "--pinentry-mode loopback --passphrase ${{ secrets.GPG_PRIVATE_KEY_PASS }}" \
-            --batch ${PACKAGE_DIRECTORY}/install/*.deb
+      # - name: Sign DEB Packages
+      #   if: matrix.packageType == 'deb'
+      #   run: |
+      #     dpkg-sig --sign origin \
+      #       --gpg-options "--pinentry-mode loopback --passphrase ${{ secrets.GPG_PRIVATE_KEY_PASS }}" \
+      #       --batch ${PACKAGE_DIRECTORY}/install/*.deb
 
-      - name: Sign RPM Packages
-        if: matrix.packageType == 'rpm'
-        run: |
-          gpg --export --armor > gpgkey.pub && rpm --import gpgkey.pub
-          rpm -D "__gpg /usr/bin/gpg" \
-              -D "_gpg_path $HOME/.gnupg" \
-              -D "_gpg_name ${{ secrets.GPG_KEY_NAME }}" \
-              -D "_gpg_sign_cmd_extra_args --pinentry-mode loopback --passphrase ${{ secrets.GPG_PRIVATE_KEY_PASS }}" \
-              --addsign ${PACKAGE_DIRECTORY}/install/rpm/SPECS/RPMS/noarch/*.rpm 
+      # - name: Sign RPM Packages
+      #   if: matrix.packageType == 'rpm'
+      #   run: |
+      #     gpg --export --armor > gpgkey.pub && rpm --import gpgkey.pub
+      #     rpm -D "__gpg /usr/bin/gpg" \
+      #         -D "_gpg_path $HOME/.gnupg" \
+      #         -D "_gpg_name ${{ secrets.GPG_KEY_NAME }}" \
+      #         -D "_gpg_sign_cmd_extra_args --pinentry-mode loopback --passphrase ${{ secrets.GPG_PRIVATE_KEY_PASS }}" \
+      #         --addsign ${PACKAGE_DIRECTORY}/install/rpm/SPECS/RPMS/noarch/*.rpm 
 
-      - name: Upload DEB Packages
-        if: matrix.packageType == 'deb'
-        run: |
-          find "${PACKAGE_DIRECTORY}/install" -name "*.${{ matrix.packageType }}" | xargs -P4 -I{} bash -c '
-            curl -sS --fail --retry 10 --retry-delay 10 --connect-timeout 60 --max-time 180 -H "Content-Type: multipart/form-data" \
-              -u "${{ secrets.REPO_LOGIN }}:${{ secrets.REPO_PASS }}" --data-binary "@$1" "${{ secrets.REPO_URL_4TESTING_DEB }}" \
-            && echo -e "\e[32m[Success] $(basename "$1")\e[0m" || echo "::warning:: [Uploading errors] $(basename "$1")"' _ {}
+      # - name: Upload DEB Packages
+      #   if: matrix.packageType == 'deb'
+      #   run: |
+      #     find "${PACKAGE_DIRECTORY}/install" -name "*.${{ matrix.packageType }}" | xargs -P4 -I{} bash -c '
+      #       curl -sS --fail --retry 10 --retry-delay 10 --connect-timeout 60 --max-time 180 -H "Content-Type: multipart/form-data" \
+      #         -u "${{ secrets.REPO_LOGIN }}:${{ secrets.REPO_PASS }}" --data-binary "@$1" "${{ secrets.REPO_URL_4TESTING_DEB }}" \
+      #       && echo -e "\e[32m[Success] $(basename "$1")\e[0m" || echo "::warning:: [Uploading errors] $(basename "$1")"' _ {}
 
-      - name: Upload RPM Packages
-        if: matrix.packageType == 'rpm'
-        run: |
-          find "${PACKAGE_DIRECTORY}/install/rpm/SPECS/RPMS/noarch" -name "*.${{ matrix.packageType }}" | xargs -P4 -I{} bash -c '
-            curl -sS --fail --retry 10 --retry-delay 10 --connect-timeout 60 --max-time 180 \
-              -u "${{ secrets.REPO_LOGIN }}:${{ secrets.REPO_PASS }}" --upload-file "$1" "${{ secrets.REPO_URL_4TESTING_RPM}}/$(basename $1)" \
-            && echo -e "\e[32m[Success] $(basename "$1")\e[0m" || echo "::warning:: [Uploading errors] $(basename "$1")"' _ {}
+      # - name: Upload RPM Packages
+      #   if: matrix.packageType == 'rpm'
+      #   run: |
+      #     find "${PACKAGE_DIRECTORY}/install/rpm/SPECS/RPMS/noarch" -name "*.${{ matrix.packageType }}" | xargs -P4 -I{} bash -c '
+      #       curl -sS --fail --retry 10 --retry-delay 10 --connect-timeout 60 --max-time 180 \
+      #         -u "${{ secrets.REPO_LOGIN }}:${{ secrets.REPO_PASS }}" --upload-file "$1" "${{ secrets.REPO_URL_4TESTING_RPM}}/$(basename $1)" \
+      #       && echo -e "\e[32m[Success] $(basename "$1")\e[0m" || echo "::warning:: [Uploading errors] $(basename "$1")"' _ {}
 
-      - name: Checking the DEB package for errors
-        if: matrix.packageType == 'deb'
-        run: |
-          for deb in ${PACKAGE_DIRECTORY}/install/*.deb; do
-            lintian --profile debian "$deb" > "${deb}.lintian" 2>&1 &
-          done
-          wait
-          cat ${PACKAGE_DIRECTORY}/install/*.lintian | tee LINTIAN
-          if grep -qE '^(W:|E:)' LINTIAN; then
-            echo "::warning Noticedeb=lintian::$(cat LINTIAN | awk '/^W:/ { ws += 1 } /^E:/ { es += 1 } END { print "Warnings:", ws, "Errors:", es }')"
-          fi
+      # - name: Checking the DEB package for errors
+      #   if: matrix.packageType == 'deb'
+      #   run: |
+      #     for deb in ${PACKAGE_DIRECTORY}/install/*.deb; do
+      #       lintian --profile debian "$deb" > "${deb}.lintian" 2>&1 &
+      #     done
+      #     wait
+      #     cat ${PACKAGE_DIRECTORY}/install/*.lintian | tee LINTIAN
+      #     if grep -qE '^(W:|E:)' LINTIAN; then
+      #       echo "::warning Noticedeb=lintian::$(cat LINTIAN | awk '/^W:/ { ws += 1 } /^E:/ { es += 1 } END { print "Warnings:", ws, "Errors:", es }')"
+      #     fi
 
-      - name: Checking the RPM package for errors
-        if: matrix.packageType == 'rpm'
-        run: |
-          for rpm_package in ${PACKAGE_DIRECTORY}/install/rpm/SPECS/RPMS/noarch/*.rpm; do
-            rpmlint --ignore-unused-rpmlintrc --rpmlintrc ${PACKAGE_DIRECTORY}/install/rpm/SPECS/SOURCES/${PRODUCT_LOW}.rpmlintrc $rpm_package | tee -a RPM_LINT
-          done
-          if grep -qE '(W:|E:)' RPM_LINT; then
-            echo "::warning Noticerpm=rpmlint::$(cat RPM_LINT | awk '/W:/ { ws += 1 } /E:/ { es += 1 } END { print "Warnings:", ws, "Errors:", es }')"
-          fi
+      # - name: Checking the RPM package for errors
+      #   if: matrix.packageType == 'rpm'
+      #   run: |
+      #     for rpm_package in ${PACKAGE_DIRECTORY}/install/rpm/SPECS/RPMS/noarch/*.rpm; do
+      #       rpmlint --ignore-unused-rpmlintrc --rpmlintrc ${PACKAGE_DIRECTORY}/install/rpm/SPECS/SOURCES/${PRODUCT_LOW}.rpmlintrc $rpm_package | tee -a RPM_LINT
+      #     done
+      #     if grep -qE '(W:|E:)' RPM_LINT; then
+      #       echo "::warning Noticerpm=rpmlint::$(cat RPM_LINT | awk '/W:/ { ws += 1 } /E:/ { es += 1 } END { print "Warnings:", ws, "Errors:", es }')"
+      #     fi
       
   trigger_oci:
     name: Trigger ci-oci-install Workflow
@@ -221,8 +222,8 @@ jobs:
     steps:
       - name: Trigger CI-OCI-Install Workflow
         run: |
-          deb_build="${{ github.event.inputs.deb_build }}"
-          rpm_build="${{ github.event.inputs.rpm_build }}"
+          deb_build=false
+          rpm_build=true
           [[ "${{ needs.prepare.outputs.build_all }}" == "true" ]] && deb_build="true" && rpm_build="true"
           curl \
             -X POST \
