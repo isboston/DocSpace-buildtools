@@ -70,6 +70,12 @@ jobs:
       - name: Set matrix names
         id: set-matrix
         run: |
+          DEB_BUILD="${{ github.event.inputs.deb_build }}"
+          RPM_BUILD="${{ github.event.inputs.rpm_build }}"
+
+          echo "::notice ::DEB_BUILD=$DEB_BUILD"
+          echo "::notice ::RPM_BUILD=$RPM_BUILD"
+
           matrix=$(echo '{
             "include": [
               {"execute": '${{ github.event.inputs.rhel9 || true }}', "name": "RHEL 9", "os": "rhel9", "distr": "generic"},
@@ -92,8 +98,8 @@ jobs:
           echo "::endgroup::"
 
           matrix=$(jq -c \
-          --argjson debuild $([[ "${{ github.event.inputs.deb_build }}" == 'false' ]] && echo false || echo true) \
-          --argjson rpmbuild $([[ "${{ github.event.inputs.rpm_build }}" == 'false' ]] && echo false || echo true) \
+          --argjson debuild "$( [ "$DEB_BUILD" == "false" ] && echo false || echo true )" \
+          --argjson rpmbuild "$( [ "$RPM_BUILD" == "false" ] && echo false || echo true )" \
           '{include:[.include[]|select(.execute and(
             ($debuild and(.name|test("Debian|Ubuntu"))) or
             ($rpmbuild and(.name|test("CentOS|Fedora|RHEL")))
