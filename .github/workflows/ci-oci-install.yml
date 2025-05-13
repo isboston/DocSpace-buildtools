@@ -81,7 +81,7 @@ jobs:
               {"execute": '${{ github.event.inputs.fedora40 || true }}', "name": "Fedora40", "os": "base-fedora40", "distr": "onlyoffice"},
               {"execute": '${{ github.event.inputs.fedora41 || true }}', "name": "Fedora41", "os": "base-fedora41", "distr": "onlyoffice"}
             ]
-          }')
+          }')            
 
           matrix=$(echo "$matrix" | sed -E "s/'(true|false)'/\\1/g")
           if [[ "${{ github.event.inputs.deb_build }}" == "true" ]]; then
