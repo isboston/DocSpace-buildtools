@@ -102,9 +102,22 @@ jobs:
               {"execute": '${{ github.event.inputs.fedora41 || true }}', "name": "Fedora41", "os": "base-fedora41", "distr": "onlyoffice"}
             ]
           }')
-
+          echo "::group::[DEBUG] matrix before filtering"
+          echo "$matrix" | jq .
+          echo "::endgroup::"
           # Удаляем кавычки вокруг 'true'/'false'
           matrix=$(echo "$matrix" | sed -E "s/'(true|false)'/\\1/g")
+          if [[ "$DEBUILD_BOOL" == "true" ]]; then
+            matrix=$(echo "$matrix" | jq '
+              .include |= map(
+                if (.name | test("Debian|Ubuntu")) then
+                  .execute = true
+                else
+                  .
+                end
+              )
+            ')
+          fi
 
           echo "::group::[DEBUG] matrix after sed"
           echo "$matrix"
