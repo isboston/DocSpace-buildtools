@@ -87,28 +87,28 @@ jobs:
               {"execute": '${{ github.event.inputs.fedora40 || true }}', "name": "Fedora40", "os": "base-fedora40", "distr": "onlyoffice"},
               {"execute": '${{ github.event.inputs.fedora41 || true }}', "name": "Fedora41", "os": "base-fedora41", "distr": "onlyoffice"}
             ]
-          }')            
+          }')
 
-          # ──► удаляем одинарные кавычки вокруг true/false
+          # Удаляем кавычки вокруг 'true'/'false'
           matrix=$(echo "$matrix" | sed -E "s/'(true|false)'/\\1/g")
 
-          # ──► отладка: покажем, что теперь JSON валидный
           echo "::group::[DEBUG] matrix after sed"
-          printf '%s\n' "$matrix"
+          echo "$matrix"
           echo "::endgroup::"
 
+          # ✅ ВНИМАНИЕ: без двойных кавычек вокруг подстановки
           matrix=$(jq -c \
-          --argjson debuild "$( [ "$DEB_BUILD" == "false" ] && echo false || echo true )" \
-          --argjson rpmbuild "$( [ "$RPM_BUILD" == "false" ] && echo false || echo true )" \
-          '{include:[.include[]|select(.execute and(
-            ($debuild and(.name|test("Debian|Ubuntu"))) or
-            ($rpmbuild and(.name|test("CentOS|Fedora|RHEL")))
-          ))]}' <<< "$matrix")
+            --argjson debuild $( [ "$DEB_BUILD" == "false" ] && echo false || echo true ) \
+            --argjson rpmbuild $( [ "$RPM_BUILD" == "false" ] && echo false || echo true ) \
+            '{include:[.include[] | select(.execute and (
+              ($debuild and (.name | test("Debian|Ubuntu"))) or
+              ($rpmbuild and (.name | test("CentOS|Fedora|RHEL")))
+            ))]}' <<< "$matrix")
 
-          echo "::notice ::DEB_BUILD=${{ github.event.inputs.deb_build }}  → debuild=$debuild"
-          echo "::notice ::RPM_BUILD=${{ github.event.inputs.rpm_build }}  → rpmbuild=$rpmbuild"
+          echo "::notice ::DEB_BUILD=$DEB_BUILD  → debuild=$debuild"
+          echo "::notice ::RPM_BUILD=$RPM_BUILD  → rpmbuild=$rpmbuild"
 
-
+          # Пулл-реквест фильтр
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
             matrix=$(jq -c --arg REDHAT_CHANGED "${{ env.redhat_changed }}" --arg DEBIAN_CHANGED "${{ env.debian_changed }}" \
             '{include:[.include[]|select(.execute and(
@@ -117,8 +117,9 @@ jobs:
               ($DEBIAN_CHANGED=="true" and(.name|test("Debian|Ubuntu")))
             ))]}' <<< "$matrix")
           fi
-        
+
           echo "matrix=$matrix" >> $GITHUB_OUTPUT
+
 
   vagrant-up:
     name: "Test DocSpace with ${{ matrix.name}}"
