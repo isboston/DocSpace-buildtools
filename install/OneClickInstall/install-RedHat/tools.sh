@@ -57,7 +57,8 @@ UPDATE_AVAILABLE_CODE=100
 DIST=$(rpm -qa --queryformat '%{NAME}\n' | grep -E 'centos-release|redhat-release|fedora-release' | awk -F '-' '{print $1}' | head -n 1)
 DIST=${DIST:-$(awk -F= '/^ID=/ {gsub(/"/, "", $2); print tolower($2)}' /etc/os-release)}
 [[ "$DIST" =~ ^(centos|redhat|fedora)$ ]] || DIST="centos"
-REV=$(sed -n 's/.*release\ \([0-9]*\).*/\1/p' /etc/redhat-release)
+REV=$(sed -n 's/.*release\ \([0-9]*\).*/\1/p' /etc/redhat-release 2>/dev/null)
+REV=${REV:-$(awk -F= '/^VERSION_ID=/ {gsub(/"/, "", $2); print $2}' /etc/os-release | cut -d '.' -f1)}
 REV=${REV:-"7"}
 
 REMI_DISTR_NAME="enterprise"
