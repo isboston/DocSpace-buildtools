@@ -137,10 +137,6 @@ EOF
           ;;
       amzn)
           [[ "${TEST_REPO_ENABLE}" == 'true' ]] && add-repo-rpm
-
-          dnf -y clean all
-          dnf -y install curl sudo gnupg2
-
           ;;
       *)
           echo "${COLOR_RED}Failed to determine Linux dist${COLOR_RESET}"; exit 1
