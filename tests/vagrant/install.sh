@@ -93,6 +93,7 @@ END
 #############################################################################################
 function prepare_vm() {
   if [ -f /etc/os-release ]; then
+    [ -f /etc/amazon-linux-release ] && ID=amzn
     source /etc/os-release
     case $ID in
       ubuntu)
