@@ -1,10 +1,10 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-cat<<EOF
+cat <<EOF
 
 #######################################
-#  INSTALL PREREQUISITES
+#  INSTALL PREREQUISITES (Amazon Linux 2023)
 #######################################
 
 EOF
@@ -22,10 +22,13 @@ package_manager="yum"
 ${package_manager} clean all
 ${package_manager} -y install yum-utils
 
-${package_manager} install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+# EPEL — через amazon-linux-extras
+amazon-linux-extras enable epel
+${package_manager} -y install epel-release
 
-yum remove -y mysql* mariadb* || true
+yum remove -y "mysql*" "mariadb*" || true
 
+# RabbitMQ + Erlang
 curl -s https://packagecloud.io/install/repositories/rabbitmq/rabbitmq-server/script.rpm.sh | os=el dist=9 bash
 curl -s https://packagecloud.io/install/repositories/rabbitmq/erlang/script.rpm.sh | os=el dist=9 bash
 
@@ -45,6 +48,7 @@ if [ "$INSTALL_FLUENT_BIT" == "true" ]; then
     DASHBOARDS_VERSION="2.18.0"
 fi
 
+# NGINX
 cat >/etc/yum.repos.d/nginx.repo <<'END'
 [nginx-stable]
 name=nginx stable repo
@@ -56,9 +60,11 @@ module_hotfixes=true
 priority=9
 END
 
+# OpenResty
 rpm --import https://openresty.org/package/pubkey.gpg
 curl -o /etc/yum.repos.d/openresty.repo https://openresty.org/package/amazon/openresty.repo
 
+# Install packages
 yum -y install \
     python3 \
     nodejs \
@@ -69,32 +75,37 @@ yum -y install \
     postgresql16-server \
     rabbitmq-server \
     valkey \
-    SDL2 \
+    SDL2-devel \
     expect \
     java-21-amazon-corretto-headless \
     policycoreutils-python-utils \
     --enablerepo=opensearch-2.x
 
+# Init PostgreSQL
+if [ -f /usr/lib/systemd/system/postgresql-16.service ]; then
+  id postgres &>/dev/null || useradd -r -u 26 -g 26 -s /bin/bash postgres
+  if [ ! -d /var/lib/pgsql/data ]; then
+      mkdir -p /var/lib/pgsql/data
+      chown -R postgres:postgres /var/lib/pgsql
+      sudo -u postgres /usr/bin/initdb -D /var/lib/pgsql/data
+  fi
 
-ls /usr/lib/systemd/system/postgresql-16.service
-if [ ! -d /var/lib/pgsql/data ]; then
-    mkdir -p /var/lib/pgsql/data
-    chown -R postgres:postgres /var/lib/pgsql
-    sudo -u postgres /usr/bin/initdb -D /var/lib/pgsql/data
+  sed -E -i "s/(host\s+(all|replication)\s+all\s+(127\.0\.0\.1\/32|\:\:1\/128)\s+)(ident|trust|md5)/\1scram-sha-256/" /var/lib/pgsql/data/pg_hba.conf
+  sed -i "s/^#\?password_encryption = .*/password_encryption = 'scram-sha-256'/" /var/lib/pgsql/data/postgresql.conf
 fi
 
-sed -E -i "s/(host\s+(all|replication)\s+all\s+(127\.0\.0\.1\/32|\:\:1\/128)\s+)(ident|trust|md5)/\1scram-sha-256/" /var/lib/pgsql/data/pg_hba.conf
-sed -i "s/^#\?password_encryption = .*/password_encryption = 'scram-sha-256'/" /var/lib/pgsql/data/postgresql.conf
-
+# Set JAVA alternative
 JAVA_PATH=$(dirname $(readlink -f /usr/bin/java))
 alternatives --install /usr/bin/java java "$JAVA_PATH/java" 100
 alternatives --set java "$JAVA_PATH/java"
 
+# Fluent Bit + OpenSearch Dashboards
 if [ "$INSTALL_FLUENT_BIT" == "true" ]; then 
     curl https://raw.githubusercontent.com/fluent/fluent-bit/master/install.sh | bash
     yum -y install opensearch-dashboards-"$DASHBOARDS_VERSION" --enablerepo=opensearch-dashboards-2.x
 fi
 
-semanage permissive -a httpd_t
+# SELinux permissive
+command -v semanage &>/dev/null && semanage permissive -a httpd_t || echo "⚠️  semanage not available"
 
 echo "✅ Prerequisites installation completed for Amazon Linux 2023."
