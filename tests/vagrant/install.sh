@@ -135,6 +135,9 @@ EOF
 
           [[ "${TEST_REPO_ENABLE}" == 'true' ]] && add-repo-rpm
           ;;
+      amzn)
+          [[ "${TEST_REPO_ENABLE}" == 'true' ]] && add-repo-rpm
+          ;;
       *)
           echo "${COLOR_RED}Failed to determine Linux dist${COLOR_RESET}"; exit 1
           ;;

@@ -113,7 +113,7 @@ DOWNLOAD_URL_PREFIX="https://download.${product_sysname}.com/${product}"
 
 if [ "$DOCKER" == "true" ]; then
     SCRIPT_NAME="install-Docker.sh"
-elif [ -f /etc/redhat-release ]; then
+elif [ -f /etc/redhat-release ] || [ -f /etc/amazon-linux-release ]; then
     SCRIPT_NAME="install-RedHat.sh"
 elif [ -f /etc/debian_version ]; then
     SCRIPT_NAME="install-Debian.sh"

@@ -14,10 +14,6 @@ on:
          type: boolean
          description: 'CentOS 9 Stream'
          default: true
-      debian11:
-         type: boolean
-         description: 'Debian 11'
-         default: true
       debian12:
          type: boolean
          description: 'Debian 12'
@@ -37,6 +33,10 @@ on:
       fedora42:
         type: boolean
         description: 'Fedora 42'
+        default: true
+      amazon2023:
+        type: boolean
+        description: 'Amazon Linux 2023'
         default: true
       deb_build:
         type: boolean
@@ -60,19 +60,19 @@ jobs:
             "include": [
               {"execute": '${{ github.event.inputs.rhel9 || true }}', "name": "RHEL 9", "os": "rhel9", "distr": "generic"},
               {"execute": '${{ github.event.inputs.centos9s || true }}', "name": "CentOS9s", "os": "base-centos9s", "distr": "onlyoffice"},
-              {"execute": '${{ github.event.inputs.debian11 || true }}', "name": "Debian11", "os": "base-debian11", "distr": "onlyoffice"},
               {"execute": '${{ github.event.inputs.debian12 || true }}', "name": "Debian12", "os": "base-debian12", "distr": "onlyoffice"},
               {"execute": '${{ github.event.inputs.ubuntu2204 || true }}', "name": "Ubuntu22.04", "os": "base-ubuntu2204", "distr": "onlyoffice"},
               {"execute": '${{ github.event.inputs.ubuntu2404 || true }}', "name": "Ubuntu24.04", "os": "base-ubuntu2404", "distr": "onlyoffice"},
               {"execute": '${{ github.event.inputs.fedora41 || true }}', "name": "Fedora41", "os": "base-fedora41", "distr": "onlyoffice"},
-              {"execute": '${{ github.event.inputs.fedora42 || true }}', "name": "Fedora42", "os": "base-fedora42", "distr": "onlyoffice"}
+              {"execute": '${{ github.event.inputs.fedora42 || true }}', "name": "Fedora42", "os": "base-fedora42", "distr": "onlyoffice"},
+              {"execute": '${{ github.event.inputs.amazon2023 || true }}', "name": "Amazon Linux 2023", "os": "amazonlinux-2023", "distr": "bento"}
             ]
           }')            
 
           matrix=$(jq -c --argjson debuild "${{ github.event.inputs.deb_build||true }}" --argjson rpmbuild "${{ github.event.inputs.rpm_build||true }}" \
           '{include:[.include[]|select(.execute or
             ($debuild and(.name|test("Debian|Ubuntu"))) or
-            ($rpmbuild and(.name|test("CentOS|Fedora|RHEL")))
+            ($rpmbuild and(.name|test("CentOS|Fedora|RHEL|Amazon")))
           )]}' <<< "$matrix")
 
           echo "matrix=$matrix" >> $GITHUB_OUTPUT
