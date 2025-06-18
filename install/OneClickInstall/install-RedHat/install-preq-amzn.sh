@@ -21,7 +21,7 @@ OPENRESTY_DISTR_NAME="amazon"
 # clean yum cache
 ${package_manager} clean all
 
-$package_manager -y install yum-utils jq policycoreutils-python-utils
+$package_manager -y install yum-utils
 
 { yum check-update postgresql; PSQLExitCode=$?; } || true
 { yum check-update "$DIST"*-release; exitCode=$?; } || true
@@ -104,8 +104,7 @@ OPENRESTY_REPO_FILE="openresty.repo"
 curl -o /etc/yum.repos.d/openresty.repo \
   "https://openresty.org/package/${OPENRESTY_DISTR_NAME}/${OPENRESTY_REPO_FILE}"
 
-# Microsoft .NET repo (AL2023 не содержит SDK 9.0 по умолчанию)
-rpm -Uvh https://packages.microsoft.com/config/centos/9.0/packages-microsoft-prod.rpm
+rpm -Uvh https://packages.microsoft.com/config/amazonlinux/2023/packages-microsoft-prod.rpm
 
 # install packages
 JAVA_VERSION=21
@@ -121,7 +120,7 @@ ${package_manager} -y install \
 			redis \
 			SDL2 \
 			expect \
-			java-${JAVA_VERSION}-openjdk-headless \
+			java-${JAVA_VERSION}-corretto-headless \
 			--enablerepo=opensearch-2.x
 
 if [[ ${PSQLExitCode} -eq ${UPDATE_AVAILABLE_CODE} ]]; then
