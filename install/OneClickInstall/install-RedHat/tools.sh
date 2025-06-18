@@ -59,6 +59,18 @@ REV=$(sed -n 's/.*release\ \([0-9]*\).*/\1/p' /etc/redhat-release) || true
 DIST=${DIST:-$(awk -F= '/^ID=/ {gsub(/"/, "", $2); print tolower($2)}' /etc/os-release)}
 REV=${REV:-$(awk -F= '/^VERSION_ID=/ {gsub(/"/, "", $2); print tolower($2)}' /etc/os-release)}
 
+
+# DEBUG INFO
+echo "🔧 Detected distribution: DIST=${DIST}, REV=${REV}"
+echo "🔧 /etc/os-release content:"
+cat /etc/os-release
+echo "🔧 /etc/redhat-release content (if exists):"
+[ -f /etc/redhat-release ] && cat /etc/redhat-release || echo "(not found)"
+echo "🔧 uname -a:"
+uname -a
+echo "🔧 rpm -qa | grep -E 'release' output:"
+rpm -qa | grep -E 'release'
+
 REMI_DISTR_NAME="enterprise"
 RPMFUSION_DISTR_NAME="el"
 MYSQL_DISTR_NAME="el"
