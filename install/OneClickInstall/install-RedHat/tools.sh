@@ -55,17 +55,22 @@ fi
 
 UPDATE_AVAILABLE_CODE=100
 DIST=$(rpm -qa --queryformat '%{NAME}\n' | grep -E 'centos-release|redhat-release|fedora-release' | awk -F '-' '{print $1}' | head -n 1)
+REV=$(sed -n 's/.*release\ \([0-9]*\).*/\1/p' /etc/redhat-release) || true
 DIST=${DIST:-$(awk -F= '/^ID=/ {gsub(/"/, "", $2); print tolower($2)}' /etc/os-release)}
-[[ "$DIST" =~ ^(centos|redhat|fedora)$ ]] || DIST="centos"
-REV=$(sed -n 's/.*release\ \([0-9]*\).*/\1/p' /etc/redhat-release 2>/dev/null || true)
-REV=${REV:-$(awk -F= '/^VERSION_ID=/ {gsub(/"/, "", $2); print $2}' /etc/os-release | cut -d '.' -f1)}
-REV=${REV:-"7"}
+REV=${REV:-$(awk -F= '/^VERSION_ID=/ {gsub(/"/, "", $2); print tolower($2)}' /etc/os-release)}
 
 REMI_DISTR_NAME="enterprise"
 RPMFUSION_DISTR_NAME="el"
 MYSQL_DISTR_NAME="el"
 OPENRESTY_DISTR_NAME="centos"
 SUPPORTED_FEDORA_FLAG="true"
+
+if [ "$DIST" = "amzn" ]; then
+    REV=2023
+    OPENRESTY_DISTR_NAME="amazon"
+    MYSQL_DISTR_NAME="el"
+    :
+fi
 
 if [ "$DIST" == "fedora" ]; then
 	REMI_DISTR_NAME="fedora"
