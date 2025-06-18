@@ -75,7 +75,14 @@ yum -y install \
     policycoreutils-python-utils \
     --enablerepo=opensearch-2.x
 
-postgresql-setup --initdb || true
+
+ls /usr/lib/systemd/system/postgresql-16.service
+if [ ! -d /var/lib/pgsql/data ]; then
+    mkdir -p /var/lib/pgsql/data
+    chown -R postgres:postgres /var/lib/pgsql
+    sudo -u postgres /usr/bin/initdb -D /var/lib/pgsql/data
+fi
+
 sed -E -i "s/(host\s+(all|replication)\s+all\s+(127\.0\.0\.1\/32|\:\:1\/128)\s+)(ident|trust|md5)/\1scram-sha-256/" /var/lib/pgsql/data/pg_hba.conf
 sed -i "s/^#\?password_encryption = .*/password_encryption = 'scram-sha-256'/" /var/lib/pgsql/data/postgresql.conf
 
