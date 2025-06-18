@@ -33,8 +33,13 @@ if [ "$DIST" = "redhat" ]; then
 fi
 
 #add rabbitmq & erlang repo
-curl -s https://packagecloud.io/install/repositories/rabbitmq/rabbitmq-server/script.rpm.sh | bash
-curl -s https://packagecloud.io/install/repositories/rabbitmq/erlang/script.rpm.sh | bash
+curl -s https://packagecloud.io/install/repositories/rabbitmq/rabbitmq-server/script.rpm.sh | os=el dist=9 bash
+curl -s https://packagecloud.io/install/repositories/rabbitmq/erlang/script.rpm.sh | os=el dist=9 bash
+
+PSQL_INSTALLED_VERSION=$(rpm -qa | grep -Eo '^postgresql[0-9]+' | sed 's/^postgresql//' | sort -nr | head -1)
+PSQL_AVAILABLE_VERSION=$(yum list postgresql\*-server --available | awk '/^postgresql[0-9]+-server/ {gsub("postgresql|-server.*","",$1); print $1}' | sort -nr | head -1)
+PSQL_VERSION=${PSQL_INSTALLED_VERSION:-$PSQL_AVAILABLE_VERSION}
+{ yum check-update postgresql${PSQL_VERSION}; PSQLExitCode=$?; } || true
 
 #add nodejs repo
 NODE_VERSION="18"
@@ -44,8 +49,6 @@ curl -fsSL https://rpm.nodesource.com/setup_${NODE_VERSION}.x | sed '/update -y/
 dnf remove -y @mysql && dnf module -y reset mysql && dnf module -y disable mysql
 MYSQL_REPO_VERSION="$(curl https://repo.mysql.com | grep -oP "mysql84-community-release-${MYSQL_DISTR_NAME}${REV}-\K.*" | grep -o '^[^.]*' | sort | tail -n1)"
 yum install -y https://repo.mysql.com/mysql84-community-release-"${MYSQL_DISTR_NAME}""${REV}"-"${MYSQL_REPO_VERSION}".noarch.rpm || true
-# Disable weak deps to avoid mysql-server on Fedora
-[ "$DIST" = "fedora" ] && WEAK_OPT="--setopt=install_weak_deps=False"
 
 if ! rpm -q mysql-community-server; then
 	MYSQL_FIRST_TIME_INSTALL="true"
@@ -81,20 +84,35 @@ curl -o /etc/yum.repos.d/openresty.repo "https://openresty.org/package/${OPENRES
 [ "$DIST" == "fedora" ] && sed -i "s/\$releasever/$OPENRESTY_REV/g" /etc/yum.repos.d/openresty.repo
 
 JAVA_VERSION=21
-${package_manager} ${WEAK_OPT} -y install $([ "$DIST" != "fedora" ] && echo "epel-release") \
+${package_manager} -y install \
 			python3 \
 			nodejs ${NODEJS_OPTION} \
-			dotnet-sdk-9.0 \
 			opensearch-${ELASTIC_VERSION} \
 			mysql-community-server \
-			postgresql \
-			postgresql-server \
+			postgresql${PSQL_VERSION} \
+			postgresql${PSQL_VERSION}-server \
 			rabbitmq-server$rabbitmq_version \
 			redis \
-			SDL2 \
 			expect \
 			java-${JAVA_VERSION}-openjdk-headless \
 			--enablerepo=opensearch-2.x
+
+# SDL новое
+curl -O https://mirror.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/s/SDL2-2.26.0-1.el9.x86_64.rpm
+curl -O https://mirror.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/s/SDL2-2.26.0-1.el9.x86_64.rpm
+rpm -Uvh SDL2-*.rpm
+
+sudo tee /etc/yum.repos.d/microsoft-dotnet.repo > /dev/null <<EOF
+[microsoft-dotnet]
+name=Microsoft .NET packages
+baseurl=https://packages.microsoft.com/yumrepos/microsoft-fedora-39-prod
+enabled=1
+gpgcheck=1
+gpgkey=https://packages.microsoft.com/keys/microsoft.asc
+EOF
+
+sudo dnf install -y dotnet-sdk-9.0
+dotnet --version
 
 # Set Java ${JAVA_VERSION} as the default version
 JAVA_PATH=$(find /usr/lib/jvm/ -name "java" -path "*java-${JAVA_VERSION}*" | head -1)
