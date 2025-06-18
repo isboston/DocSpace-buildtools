@@ -24,7 +24,10 @@ fi
 
 #Add repository EPEL
 EPEL_URL="https://dl.fedoraproject.org/pub/epel/"
-[ "$DIST" != "fedora" ] && { rpm -ivh ${EPEL_URL}/epel-release-latest-$REV.noarch.rpm || true; }
+if [ "$DIST" != "amzn" ]; then
+    rpm -ivh ${EPEL_URL}/epel-release-latest-${REV}.noarch.rpm || true
+fi
+# [ "$DIST" != "fedora" ] && { rpm -ivh ${EPEL_URL}/epel-release-latest-$REV.noarch.rpm || true; }
 [ "$REV" = "9" ] && update-crypto-policies --set DEFAULT:SHA1 && ${package_manager} -y install xorg-x11-font-utils
 [ "$DIST" = "centos" ] && TESTING_REPO="--enablerepo=$( [ "$REV" = "9" ] && echo "crb" || echo "powertools" )"
 if [ "$DIST" = "redhat" ]; then 
@@ -42,8 +45,14 @@ curl -fsSL https://rpm.nodesource.com/setup_${NODE_VERSION}.x | sed '/update -y/
 
 #add mysql repo
 dnf remove -y @mysql && dnf module -y reset mysql && dnf module -y disable mysql
-MYSQL_REPO_VERSION="$(curl https://repo.mysql.com | grep -oP "mysql84-community-release-${MYSQL_DISTR_NAME}${REV}-\K.*" | grep -o '^[^.]*' | sort | tail -n1)"
-yum install -y https://repo.mysql.com/mysql84-community-release-"${MYSQL_DISTR_NAME}""${REV}"-"${MYSQL_REPO_VERSION}".noarch.rpm || true
+if [ "$DIST" = "amzn" ]; then
+    yum install -y https://repo.mysql.com/mysql84-community-release-el9-1.noarch.rpm || true
+else
+    MYSQL_REPO_VERSION="$(curl -s https://repo.mysql.com | \
+          grep -oP "mysql84-community-release-${MYSQL_DISTR_NAME}${REV}-\K.*" | \
+          grep -o '^[^.]*' | sort | tail -n1)"
+    yum install -y https://repo.mysql.com/mysql84-community-release-"${MYSQL_DISTR_NAME}${REV}-${MYSQL_REPO_VERSION}".noarch.rpm || true
+fi
 # Disable weak deps to avoid mysql-server on Fedora
 [ "$DIST" = "fedora" ] && WEAK_OPT="--setopt=install_weak_deps=False"
 
@@ -63,25 +72,32 @@ if [ ${INSTALL_FLUENT_BIT} == "true" ]; then
 fi
 
 # add nginx repo, Fedora doesn't need it
-if [ "$DIST" != "fedora" ]; then
-cat > /etc/yum.repos.d/nginx.repo <<END
+cat >/etc/yum.repos.d/nginx.repo <<'END'
 [nginx-stable]
 name=nginx stable repo
-baseurl=https://nginx.org/packages/centos/$REV/\$basearch/
+baseurl=https://nginx.org/packages/amzn/2023/$basearch/
 gpgcheck=1
 enabled=1
 gpgkey=https://nginx.org/keys/nginx_signing.key
 module_hotfixes=true
+priority=9
+
+[nginx-mainline]
+name=nginx mainline repo
+baseurl=https://nginx.org/packages/mainline/amzn/2023/$basearch/
+gpgcheck=1
+enabled=0
+gpgkey=https://nginx.org/keys/nginx_signing.key
+module_hotfixes=true
+priority=9
 END
-fi
+
 
 rpm --import https://openresty.org/package/pubkey.gpg
-OPENRESTY_REPO_FILE=$( [[ "$REV" -ge 9 && "$DIST" != "fedora" ]] && echo "openresty2.repo" || echo "openresty.repo" )
-curl -o /etc/yum.repos.d/openresty.repo "https://openresty.org/package/${OPENRESTY_DISTR_NAME}/${OPENRESTY_REPO_FILE}"
-[ "$DIST" == "fedora" ] && sed -i "s/\$releasever/$OPENRESTY_REV/g" /etc/yum.repos.d/openresty.repo
+curl -o /etc/yum.repos.d/openresty.repo https://openresty.org/package/amazon/openresty.repo
 
 JAVA_VERSION=21
-${package_manager} ${WEAK_OPT} -y install $([ "$DIST" != "fedora" ] && echo "epel-release") \
+${package_manager} ${WEAK_OPT} -y install \
 			python3 \
 			nodejs ${NODEJS_OPTION} \
 			dotnet-sdk-9.0 \
@@ -97,8 +113,11 @@ ${package_manager} ${WEAK_OPT} -y install $([ "$DIST" != "fedora" ] && echo "epe
 			--enablerepo=opensearch-2.x
 
 # Set Java ${JAVA_VERSION} as the default version
-JAVA_PATH=$(find /usr/lib/jvm/ -name "java" -path "*java-${JAVA_VERSION}*" | head -1)
-alternatives --install /usr/bin/java java "$JAVA_PATH" 100 && alternatives --set java "$JAVA_PATH"
+JAVA_PATH=$(find /usr/lib/jvm/ -name java -path "*java-${JAVA_VERSION}*" | head -1)
+if [ -n "$JAVA_PATH" ]; then
+  alternatives --install /usr/bin/java java "$JAVA_PATH" 100
+  alternatives --set java "$JAVA_PATH"
+fi
 
 #add repo, install fluent-bit
 if [ "${INSTALL_FLUENT_BIT}" == "true" ]; then 
@@ -116,8 +135,8 @@ sed -E -i "s/(host\s+(all|replication)\s+all\s+(127\.0\.0\.1\/32|\:\:1\/128)\s+)
 sed -i "s/^#\?password_encryption = .*/password_encryption = 'scram-sha-256'/" /var/lib/pgsql/data/postgresql.conf
 
 if ! command -v semanage &> /dev/null; then
-	yum install -y policycoreutils-python || yum install -y policycoreutils-python-utils
-fi 
+    yum install -y policycoreutils-python-utils
+fi
 
 semanage permissive -a httpd_t
 
