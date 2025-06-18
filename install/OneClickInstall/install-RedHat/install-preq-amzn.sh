@@ -2,6 +2,11 @@
 
 set -e
 
+if grep -q '^ID=amzn' /etc/os-release; then
+    DIST=amzn
+    REV=2023
+fi
+
 cat<<EOF
 
 #######################################
