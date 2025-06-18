@@ -77,7 +77,7 @@ OPENRESTY_DISTR_NAME="centos"
 SUPPORTED_FEDORA_FLAG="true"
 
 if [ "$DIST" = "amzn" ]; then
-    REV=2023
+    REV=9
     OPENRESTY_DISTR_NAME="amazon"
     MYSQL_DISTR_NAME="el"
     :

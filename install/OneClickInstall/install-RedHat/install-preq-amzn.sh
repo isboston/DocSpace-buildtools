@@ -22,16 +22,6 @@ if rpm -qa | grep 'mariadb.*config' >/dev/null 2>&1; then
    echo "$RES_MARIADB" && exit 0
 fi
 
-#Add repository EPEL
-EPEL_URL="https://dl.fedoraproject.org/pub/epel/"
-[ "$DIST" != "fedora" ] && { rpm -ivh ${EPEL_URL}/epel-release-latest-$REV.noarch.rpm || true; }
-[ "$REV" = "9" ] && update-crypto-policies --set DEFAULT:SHA1 && ${package_manager} -y install xorg-x11-font-utils
-[ "$DIST" = "centos" ] && TESTING_REPO="--enablerepo=$( [ "$REV" = "9" ] && echo "crb" || echo "powertools" )"
-if [ "$DIST" = "redhat" ]; then 
-	LADSPA_PACKAGE_VERSION=$(curl -s "${EPEL_URL}/10/Everything/x86_64/Packages/l/" | grep -oP 'ladspa-[0-9].*?\.rpm' | sort -V | tail -n 1)
-	${package_manager} install -y "${EPEL_URL}/10/Everything/x86_64/Packages/l/${LADSPA_PACKAGE_VERSION}"
-fi
-
 #add rabbitmq & erlang repo
 curl -s https://packagecloud.io/install/repositories/rabbitmq/rabbitmq-server/script.rpm.sh | os=el dist=9 bash
 curl -s https://packagecloud.io/install/repositories/rabbitmq/erlang/script.rpm.sh | os=el dist=9 bash
@@ -65,19 +55,6 @@ if [ ${INSTALL_FLUENT_BIT} == "true" ]; then
 	DASHBOARDS_VERSION="2.18.0"
 fi
 
-# add nginx repo, Fedora doesn't need it
-if [ "$DIST" != "fedora" ]; then
-cat > /etc/yum.repos.d/nginx.repo <<END
-[nginx-stable]
-name=nginx stable repo
-baseurl=https://nginx.org/packages/centos/$REV/\$basearch/
-gpgcheck=1
-enabled=1
-gpgkey=https://nginx.org/keys/nginx_signing.key
-module_hotfixes=true
-END
-fi
-
 rpm --import https://openresty.org/package/pubkey.gpg
 OPENRESTY_REPO_FILE=$( [[ "$REV" -ge 9 && "$DIST" != "fedora" ]] && echo "openresty2.repo" || echo "openresty.repo" )
 curl -o /etc/yum.repos.d/openresty.repo "https://openresty.org/package/${OPENRESTY_DISTR_NAME}/${OPENRESTY_REPO_FILE}"
@@ -92,27 +69,20 @@ ${package_manager} -y install \
 			postgresql${PSQL_VERSION} \
 			postgresql${PSQL_VERSION}-server \
 			rabbitmq-server$rabbitmq_version \
+            SDL2-devel \
 			redis \
 			expect \
-			java-${JAVA_VERSION}-openjdk-headless \
+			java-${JAVA_VERSION}-amazon-corretto \
 			--enablerepo=opensearch-2.x
 
-# SDL новое
-curl -O https://mirror.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/s/SDL2-2.26.0-1.el9.x86_64.rpm
-curl -O https://mirror.almalinux.org/almalinux/9/AppStream/x86_64/os/Packages/s/SDL2-2.26.0-1.el9.x86_64.rpm
-rpm -Uvh SDL2-*.rpm
-
-sudo tee /etc/yum.repos.d/microsoft-dotnet.repo > /dev/null <<EOF
-[microsoft-dotnet]
-name=Microsoft .NET packages
-baseurl=https://packages.microsoft.com/yumrepos/microsoft-fedora-39-prod
-enabled=1
-gpgcheck=1
-gpgkey=https://packages.microsoft.com/keys/microsoft.asc
-EOF
+sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
+sudo sh -c 'echo -e "[packages-microsoft-com-prod]\nname=packages-microsoft-com-prod\nbaseurl=https://packages.microsoft.com/yumrepos/microsoft-rhel8.0-release-prod\nenabled=1\ngpgcheck=1\nrepo_gpgcheck=1\ngpgkey=https://packages.microsoft.com/keys/microsoft.asc" > /etc/yum.repos.d/microsoft-prod.repo'
+sudo dnf update -y
 
 sudo dnf install -y dotnet-sdk-9.0
 dotnet --version
+dotnet --info
+java --version
 
 # Set Java ${JAVA_VERSION} as the default version
 JAVA_PATH=$(find /usr/lib/jvm/ -name "java" -path "*java-${JAVA_VERSION}*" | head -1)
@@ -128,10 +98,10 @@ if [[ $PSQLExitCode -eq $UPDATE_AVAILABLE_CODE ]]; then
 	yum -y install postgresql-upgrade
 	postgresql-setup --upgrade || true
 fi
-postgresql-setup --initdb || true
+/usr/pgsql-${PSQL_VERSION}/bin/postgresql-${PSQL_VERSION}-setup --initdb || true
 
-sed -E -i "s/(host\s+(all|replication)\s+all\s+(127\.0\.0\.1\/32|\:\:1\/128)\s+)(ident|trust|md5)/\1scram-sha-256/" /var/lib/pgsql/data/pg_hba.conf
-sed -i "s/^#\?password_encryption = .*/password_encryption = 'scram-sha-256'/" /var/lib/pgsql/data/postgresql.conf
+sed -E -i "s/(host\s+(all|replication)\s+all\s+(127\.0\.0\.1\/32|\:\:1\/128)\s+)(ident|trust|md5)/\1scram-sha-256/" /var/lib/pgsql/${PSQL_VERSION}/data/pg_hba.conf
+sed -i "s/^#\?password_encryption = .*/password_encryption = 'scram-sha-256'/" /var/lib/pgsql/${PSQL_VERSION}/data/postgresql.conf
 
 if ! command -v semanage &> /dev/null; then
 	yum install -y policycoreutils-python || yum install -y policycoreutils-python-utils
