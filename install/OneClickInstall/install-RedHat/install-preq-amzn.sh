@@ -87,10 +87,37 @@ ${package_manager} -y install \
 			expect \
 			java-${JAVA_VERSION}-amazon-corretto
 
-sudo curl -o /etc/yum.repos.d/packages-microsoft-com-prod.repo \
-     https://packages.microsoft.com/config/fedora/39/prod.repo
-sudo dnf update -y
-sudo dnf --disablerepo=amazonlinux install -y dotnet-sdk-9.0
+
+
+# === dotnet-sdk 9.0: ручная установка ===
+
+DOTNET_VERSION=9.0.100
+DOTNET_DIR=/opt/dotnet
+DOTNET_BIN=${DOTNET_DIR}/dotnet
+DOTNET_TGZ_URL="https://download.visualstudio.microsoft.com/download/pr/70ccf458-471b-4e90-8040-bb474395b3f7/f7b7c6f8b5fd99cd85fc26f845cbb1c6/dotnet-sdk-${DOTNET_VERSION}-linux-x64.tar.gz"
+
+echo "Installing .NET SDK ${DOTNET_VERSION} manually..."
+
+${package_manager} install -y libicu zlib krb5-libs openssl curl libcurl lttng-ust libunwind libuuid
+
+mkdir -p "${DOTNET_DIR}"
+curl -sSL "${DOTNET_TGZ_URL}" | tar -xz -C "${DOTNET_DIR}"
+
+cat >/etc/profile.d/dotnet.sh <<EOF
+export DOTNET_ROOT=${DOTNET_DIR}
+export PATH=\$DOTNET_ROOT:\$PATH
+EOF
+
+source /etc/profile.d/dotnet.sh
+
+if command -v dotnet >/dev/null; then
+    echo "✅ dotnet installed:"
+    dotnet --info
+else
+    echo "❌ dotnet installation failed"
+    exit 1
+fi
+echo "FINISH .NET SDK ${DOTNET_VERSION} manually..."
 dotnet --info
 java --version
 
