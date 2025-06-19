@@ -89,35 +89,45 @@ ${package_manager} -y install \
 
 
 
-# === dotnet-sdk 9.0: ручная установка ===
+#######################################
+#  FIXES FOR AMAZON LINUX 2023
+#######################################
 
-DOTNET_VERSION=9.0.100
-DOTNET_DIR=/opt/dotnet
-DOTNET_BIN=${DOTNET_DIR}/dotnet
-DOTNET_TGZ_URL="https://download.visualstudio.microsoft.com/download/pr/70ccf458-471b-4e90-8040-bb474395b3f7/f7b7c6f8b5fd99cd85fc26f845cbb1c6/dotnet-sdk-${DOTNET_VERSION}-linux-x64.tar.gz"
+# 1. SDL2-devel (опционально)
+# Если нужен SDL2-devel — подключаем CRB + EPEL и ставим.
+# Для DocumentServer он не обязателен, поэтому можно просто удалить
+# его из списка yum install.
 
-# === Установка .NET SDK 9 вручную ===
-DOTNET_VER=9.0.301
-DOTNET_DIR=/opt/dotnet
+dnf install -y epel-release
+dnf --enablerepo=crb,epel install -y SDL2-devel
 
-echo "Installing .NET SDK ${DOTNET_VER} manually..."
+# 2. Меняем curl-minimal -> curl (и libcurl)
+dnf swap -y curl-minimal curl
+dnf swap -y libcurl-minimal libcurl
 
-# установить зависимости
-${package_manager} install -y libicu zlib krb5-libs openssl curl libcurl lttng-ust libunwind libuuid
+# 3. Ставим зависимости для .NET без конфликтов
+dnf install -y libicu zlib krb5-libs openssl lttng-ust libunwind libuuid
 
-# загрузка и распаковка
-curl -sSL "https://dotnetcli.blob.core.windows.net/dotnet/Sdk/${DOTNET_VER}/dotnet-sdk-${DOTNET_VER}-linux-x64.tar.gz" | sudo tar -xz -C "${DOTNET_DIR}"
+#######################################
+#  INSTALL .NET SDK 9.0
+#######################################
+DOTNET_VER=9.0.301            # проверьте актуальную версию на dotnet.microsoft.com
+DOTNET_ROOT=/opt/dotnet
 
+mkdir -p "$DOTNET_ROOT"
+curl -sSL "https://dotnetcli.blob.core.windows.net/dotnet/Sdk/${DOTNET_VER}/dotnet-sdk-${DOTNET_VER}-linux-x64.tar.gz" \
+    | tar -xz -C "$DOTNET_ROOT"
 
-sudo tee /etc/profile.d/dotnet.sh >/dev/null <<EOF
-export DOTNET_ROOT=${DOTNET_DIR}
+# Экспортируем PATH
+cat >/etc/profile.d/dotnet.sh <<EOF
+export DOTNET_ROOT=${DOTNET_ROOT}
 export PATH=\$DOTNET_ROOT:\$PATH
 EOF
 source /etc/profile.d/dotnet.sh
 
-# проверка
+# Проверяем
 dotnet --info || { echo "❌ dotnet install failed"; exit 1; }
-echo "FINISH .NET SDK ${DOTNET_VERSION} manually..."
+
 dotnet --info
 java --version
 
