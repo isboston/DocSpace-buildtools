@@ -90,11 +90,6 @@ ${package_manager} -y install \
 #  FIXES FOR AMAZON LINUX 2023
 #######################################
 
-# sudo dnf install -y \
-#   https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
-# sudo dnf config-manager --set-enabled crb
-# sudo dnf install -y SDL2-devel
-
 sudo tee /etc/yum.repos.d/alma-appstream.repo << 'EOF'
 [alma-appstream]
 name = AlmaLinux 9 – AppStream (SDL2)
@@ -108,28 +103,48 @@ sudo dnf install -y SDL2 SDL2-devel
 sudo dnf config-manager --set-disabled alma-appstream
 
 
-# 2. Меняем curl-minimal -> curl (и libcurl)
-dnf swap -y curl-minimal curl
-dnf swap -y libcurl-minimal libcurl
+# # 2. Меняем curl-minimal -> curl (и libcurl)
+# dnf swap -y curl-minimal curl
+# dnf swap -y libcurl-minimal libcurl
 
-# 3. Ставим зависимости для .NET без конфликтов
-dnf install -y libicu zlib krb5-libs openssl lttng-ust libunwind libuuid
+# # 3. Ставим зависимости для .NET без конфликтов
+# dnf install -y libicu zlib krb5-libs openssl lttng-ust libunwind libuuid
 
-#######################################
-#  INSTALL .NET SDK 9.0
-#######################################
-DOTNET_VER=9.0.301
-DOTNET_ROOT=/opt/dotnet
+# #######################################
+# #  INSTALL .NET SDK 9.0
+# #######################################
+# DOTNET_VER=9.0.301
+# DOTNET_ROOT=/opt/dotnet
 
-mkdir -p "$DOTNET_ROOT"
-curl -sSL "https://dotnetcli.blob.core.windows.net/dotnet/Sdk/${DOTNET_VER}/dotnet-sdk-${DOTNET_VER}-linux-x64.tar.gz" | tar -xz -C "$DOTNET_ROOT"
+# mkdir -p "$DOTNET_ROOT"
+# curl -sSL "https://dotnetcli.blob.core.windows.net/dotnet/Sdk/${DOTNET_VER}/dotnet-sdk-${DOTNET_VER}-linux-x64.tar.gz" | tar -xz -C "$DOTNET_ROOT"
 
-# Экспортируем PATH
-cat >/etc/profile.d/dotnet.sh <<EOF
-export DOTNET_ROOT=${DOTNET_ROOT}
-export PATH=\$DOTNET_ROOT:\$PATH
+# # Экспортируем PATH
+# cat >/etc/profile.d/dotnet.sh <<EOF
+# export DOTNET_ROOT=${DOTNET_ROOT}
+# export PATH=\$DOTNET_ROOT:\$PATH
+# EOF
+# source /etc/profile.d/dotnet.sh
+
+# 1. Ключ Microsoft
+sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
+
+# 2. Репозиторий (RHEL 9 пакеты подходят Amazon Linux 2023)
+sudo tee /etc/yum.repos.d/microsoft-dotnet9.repo <<'EOF'
+[microsoft-dotnet9]
+name=Microsoft .NET 9 (RHEL9) – works on AL2023
+baseurl=https://packages.microsoft.com/yumrepos/microsoft-rhel9.0-prod
+enabled=1
+gpgcheck=1
+gpgkey=https://packages.microsoft.com/keys/microsoft.asc
 EOF
-source /etc/profile.d/dotnet.sh
+
+# 3. Обновляем метаданные
+sudo dnf clean all && sudo dnf makecache
+
+# 4. Ставим SDK 9.0 (при конфликте со старыми версиями – разрешаем замену)
+sudo dnf install -y dotnet-sdk-9.0 --allowerasing
+
 
 # Проверяем
 dotnet --info || { echo "❌ dotnet install failed"; exit 1; }
