@@ -84,12 +84,11 @@ ${package_manager} -y install \
 			rabbitmq-server$rabbitmq_version \
 			valkey \
 			expect \
-			java-${JAVA_VERSION}-amazon-corretto-devel
+			java-${JAVA_VERSION}-amazon-corretto-headless
 
 #######################################
 #  FIXES FOR AMAZON LINUX 2023
 #######################################
-
 
 sudo dnf install -y \
   https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
@@ -106,12 +105,11 @@ dnf install -y libicu zlib krb5-libs openssl lttng-ust libunwind libuuid
 #######################################
 #  INSTALL .NET SDK 9.0
 #######################################
-DOTNET_VER=9.0.301            # проверьте актуальную версию на dotnet.microsoft.com
+DOTNET_VER=9.0.301
 DOTNET_ROOT=/opt/dotnet
 
 mkdir -p "$DOTNET_ROOT"
-curl -sSL "https://dotnetcli.blob.core.windows.net/dotnet/Sdk/${DOTNET_VER}/dotnet-sdk-${DOTNET_VER}-linux-x64.tar.gz" \
-    | tar -xz -C "$DOTNET_ROOT"
+curl -sSL "https://dotnetcli.blob.core.windows.net/dotnet/Sdk/${DOTNET_VER}/dotnet-sdk-${DOTNET_VER}-linux-x64.tar.gz" | tar -xz -C "$DOTNET_ROOT"
 
 # Экспортируем PATH
 cat >/etc/profile.d/dotnet.sh <<EOF
@@ -125,6 +123,9 @@ dotnet --info || { echo "❌ dotnet install failed"; exit 1; }
 
 dotnet --info
 java --version
+valkey-server -v
+psql --version
+node -v
 
 # Set Java ${JAVA_VERSION} as the default version
 JAVA_PATH=$(find /usr/lib/jvm/ -name "java" -path "*java-${JAVA_VERSION}*" | head -1)
@@ -141,7 +142,8 @@ if [[ $PSQLExitCode -eq $UPDATE_AVAILABLE_CODE ]]; then
 	postgresql-setup --upgrade || true
 fi
 
-/usr/bin/postgresql-setup --initdb --unit postgresql-${PSQL_VERSION} || true
+sudo /usr/libexec/postgresql-16-initdb --pgdata=/var/lib/pgsql/16/data || true
+sudo systemctl enable --now postgresql-16.service
 
 sed -E -i "s/(host\s+(all|replication)\s+all\s+(127\.0\.0\.1\/32|\:\:1\/128)\s+)(ident|trust|md5)/\1scram-sha-256/" /var/lib/pgsql/${PSQL_VERSION}/data/pg_hba.conf
 sed -i "s/^#\?password_encryption = .*/password_encryption = 'scram-sha-256'/" /var/lib/pgsql/${PSQL_VERSION}/data/postgresql.conf
