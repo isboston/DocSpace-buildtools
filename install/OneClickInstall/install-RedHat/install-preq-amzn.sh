@@ -96,27 +96,27 @@ DOTNET_DIR=/opt/dotnet
 DOTNET_BIN=${DOTNET_DIR}/dotnet
 DOTNET_TGZ_URL="https://download.visualstudio.microsoft.com/download/pr/70ccf458-471b-4e90-8040-bb474395b3f7/f7b7c6f8b5fd99cd85fc26f845cbb1c6/dotnet-sdk-${DOTNET_VERSION}-linux-x64.tar.gz"
 
-echo "Installing .NET SDK ${DOTNET_VERSION} manually..."
+# === Установка .NET SDK 9 вручную ===
+DOTNET_VER=9.0.301
+DOTNET_DIR=/opt/dotnet
 
+echo "Installing .NET SDK ${DOTNET_VER} manually..."
+
+# установить зависимости
 ${package_manager} install -y libicu zlib krb5-libs openssl curl libcurl lttng-ust libunwind libuuid
 
-mkdir -p "${DOTNET_DIR}"
-curl -sSL "${DOTNET_TGZ_URL}" | tar -xz -C "${DOTNET_DIR}"
+# загрузка и распаковка
+curl -sSL "https://dotnetcli.blob.core.windows.net/dotnet/Sdk/${DOTNET_VER}/dotnet-sdk-${DOTNET_VER}-linux-x64.tar.gz" | sudo tar -xz -C "${DOTNET_DIR}"
 
-cat >/etc/profile.d/dotnet.sh <<EOF
+
+sudo tee /etc/profile.d/dotnet.sh >/dev/null <<EOF
 export DOTNET_ROOT=${DOTNET_DIR}
 export PATH=\$DOTNET_ROOT:\$PATH
 EOF
-
 source /etc/profile.d/dotnet.sh
 
-if command -v dotnet >/dev/null; then
-    echo "✅ dotnet installed:"
-    dotnet --info
-else
-    echo "❌ dotnet installation failed"
-    exit 1
-fi
+# проверка
+dotnet --info || { echo "❌ dotnet install failed"; exit 1; }
 echo "FINISH .NET SDK ${DOTNET_VERSION} manually..."
 dotnet --info
 java --version
