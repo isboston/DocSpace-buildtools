@@ -40,10 +40,6 @@ dnf remove -y @mysql && dnf module -y reset mysql && dnf module -y disable mysql
 MYSQL_REPO_VERSION="$(curl https://repo.mysql.com | grep -oP "mysql84-community-release-${MYSQL_DISTR_NAME}${REV}-\K.*" | grep -o '^[^.]*' | sort | tail -n1)"
 yum install -y https://repo.mysql.com/mysql84-community-release-"${MYSQL_DISTR_NAME}""${REV}"-"${MYSQL_REPO_VERSION}".noarch.rpm || true
 
-if ! rpm -q mysql-community-server; then
-	MYSQL_FIRST_TIME_INSTALL="true"
-fi
-
 #add opensearch repo
 curl -SL https://artifacts.opensearch.org/releases/bundle/opensearch/2.x/opensearch-2.x.repo -o /etc/yum.repos.d/opensearch-2.x.repo
 ELASTIC_VERSION="2.18.0"
@@ -70,17 +66,14 @@ ${package_manager} -y install \
 			postgresql${PSQL_VERSION}-server \
 			rabbitmq-server$rabbitmq_version \
             SDL2-devel \
-			redis \
+			valkey \
 			expect \
-			java-${JAVA_VERSION}-amazon-corretto \
-			--enablerepo=opensearch-2.x
+			java-${JAVA_VERSION}-amazon-corretto
 
-sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
-sudo sh -c 'echo -e "[packages-microsoft-com-prod]\nname=packages-microsoft-com-prod\nbaseurl=https://packages.microsoft.com/yumrepos/microsoft-rhel8.0-release-prod\nenabled=1\ngpgcheck=1\nrepo_gpgcheck=1\ngpgkey=https://packages.microsoft.com/keys/microsoft.asc" > /etc/yum.repos.d/microsoft-prod.repo'
+sudo curl -o /etc/yum.repos.d/packages-microsoft-com-prod.repo \
+     https://packages.microsoft.com/config/fedora/39/prod.repo
 sudo dnf update -y
-
-sudo dnf install -y dotnet-sdk-9.0
-dotnet --version
+sudo dnf --disablerepo=amazonlinux install -y dotnet-sdk-9.0
 dotnet --info
 java --version
 
@@ -109,5 +102,5 @@ fi
 
 semanage permissive -a httpd_t
 
-package_services="rabbitmq-server postgresql redis mysqld"
+package_services="rabbitmq-server postgresql valkey mysqld"
 rpm -q valkey &>/dev/null && package_services="${package_services//redis/valkey}" || true # https://fedoraproject.org/wiki/Changes/Replace_Redis_With_Valkey 
