@@ -157,15 +157,8 @@ fi
 
 postgresql-setup --initdb || true
 
-sudo ls -l /var/lib/pgsql
-sudo find /var/lib/pgsql -maxdepth 2 -name PG_VERSION
-
-sudo journalctl -xeu postgresql
-
-sudo -u postgres psql -c "show data_directory;"
-
-sed -E -i "s/(host\s+(all|replication)\s+all\s+(127\.0\.0\.1\/32|\:\:1\/128)\s+)(ident|trust|md5)/\1scram-sha-256/" /var/lib/pgsql/${PSQL_VERSION}/data/pg_hba.conf
-sed -i "s/^#\?password_encryption = .*/password_encryption = 'scram-sha-256'/" /var/lib/pgsql/${PSQL_VERSION}/data/postgresql.conf
+sed -E -i "s/(host\s+(all|replication)\s+all\s+(127\.0\.0\.1\/32|\:\:1\/128)\s+)(ident|trust|md5)/\1scram-sha-256/" /var/lib/pgsql/data/pg_hba.conf
+sed -i "s/^#\?password_encryption = .*/password_encryption = 'scram-sha-256'/" /var/lib/pgsql/data/postgresql.conf
 
 if ! command -v semanage &> /dev/null; then
 	yum install -y policycoreutils-python-utils
