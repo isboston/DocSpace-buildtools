@@ -24,7 +24,25 @@ fi
 
 #add rabbitmq & erlang repo
 curl -s https://packagecloud.io/install/repositories/rabbitmq/rabbitmq-server/script.rpm.sh | os=el dist=9 bash
-curl -s https://packagecloud.io/install/repositories/rabbitmq/erlang/script.rpm.sh | os=el dist=9 bash
+# curl -s https://packagecloud.io/install/repositories/rabbitmq/erlang/script.rpm.sh | os=el dist=9 bash
+
+if rpm -q rabbitmq-server; then
+    if [ "$(yum list installed rabbitmq-server | awk 'NR>1 {gsub(/^@/, "", $NF); print $NF}')" != "$(repoquery rabbitmq-server --qf='%{ui_from_repo}')" ]; then
+        res_rabbitmq_update
+        echo $RES_RABBITMQ_VERSION
+        echo $RES_RABBITMQ_REMINDER
+        echo $RES_RABBITMQ_INSTALLATION
+        read_rabbitmq_update
+    fi
+fi
+
+if [[ "$(uname -m)" =~ (arm|aarch) ]]; then
+    ERLANG_LATEST_URL=$(curl -s https://api.github.com/repos/rabbitmq/erlang-rpm/releases | \
+        jq -r '.[] | .assets[]? | select(.name | test("erlang-[0-9\\.]+-1\\.el" + 9 + "\\.aarch64\\.rpm$")) | .browser_download_url' | head -n1)
+    yum install -y "${ERLANG_LATEST_URL}"
+else
+    curl -s https://packagecloud.io/install/repositories/rabbitmq/erlang/script.rpm.sh | os=el dist=9 bash
+fi
 
 PSQL_INSTALLED_VERSION=$(rpm -qa | grep -Eo '^postgresql[0-9]+' | sed 's/^postgresql//' | sort -nr | head -1)
 PSQL_AVAILABLE_VERSION=$(yum list postgresql\*-server --available | awk '/^postgresql[0-9]+-server/ {gsub("postgresql|-server.*","",$1); print $1}' | sort -nr | head -1)
@@ -52,9 +70,8 @@ if [ ${INSTALL_FLUENT_BIT} == "true" ]; then
 fi
 
 rpm --import https://openresty.org/package/pubkey.gpg
-OPENRESTY_REPO_FILE=$( [[ "$REV" -ge 9 && "$DIST" != "fedora" ]] && echo "openresty2.repo" || echo "openresty.repo" )
-curl -o /etc/yum.repos.d/openresty.repo "https://openresty.org/package/${OPENRESTY_DISTR_NAME}/${OPENRESTY_REPO_FILE}"
-[ "$DIST" == "fedora" ] && sed -i "s/\$releasever/$OPENRESTY_REV/g" /etc/yum.repos.d/openresty.repo
+curl -o /etc/yum.repos.d/openresty.repo https://openresty.org/package/centos/openresty.repo
+sed -i "s/\$releasever/9/g" /etc/yum.repos.d/openresty.repo
 
 JAVA_VERSION=21
 ${package_manager} -y install \
@@ -91,13 +108,14 @@ if [[ $PSQLExitCode -eq $UPDATE_AVAILABLE_CODE ]]; then
 	yum -y install postgresql-upgrade
 	postgresql-setup --upgrade || true
 fi
-/usr/pgsql-${PSQL_VERSION}/bin/postgresql-${PSQL_VERSION}-setup --initdb || true
+
+/usr/bin/postgresql-setup --initdb --unit postgresql-${PSQL_VERSION} || true
 
 sed -E -i "s/(host\s+(all|replication)\s+all\s+(127\.0\.0\.1\/32|\:\:1\/128)\s+)(ident|trust|md5)/\1scram-sha-256/" /var/lib/pgsql/${PSQL_VERSION}/data/pg_hba.conf
 sed -i "s/^#\?password_encryption = .*/password_encryption = 'scram-sha-256'/" /var/lib/pgsql/${PSQL_VERSION}/data/postgresql.conf
 
 if ! command -v semanage &> /dev/null; then
-	yum install -y policycoreutils-python || yum install -y policycoreutils-python-utils
+	yum install -y policycoreutils-python-utils
 fi 
 
 semanage permissive -a httpd_t

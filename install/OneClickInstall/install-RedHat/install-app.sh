@@ -11,8 +11,11 @@ cat<<EOF
 EOF
 
 for SVC in $package_services; do
-		systemctl start $SVC
-		systemctl enable $SVC
+    if systemctl list-unit-files | grep -q "^${SVC}.service"; then
+        systemctl enable --now $SVC
+    else
+        echo "⚠️  Service unit ${SVC}.service not found, skipping"
+    fi
 done
 
 ds_pkg_name="${package_sysname}-documentserver"
