@@ -82,24 +82,19 @@ ${package_manager} -y install \
 			postgresql${PSQL_VERSION} \
 			postgresql${PSQL_VERSION}-server \
 			rabbitmq-server$rabbitmq_version \
-            SDL2-devel \
 			valkey \
 			expect \
-			java-${JAVA_VERSION}-amazon-corretto
-
-
+			java-${JAVA_VERSION}-amazon-corretto-devel
 
 #######################################
 #  FIXES FOR AMAZON LINUX 2023
 #######################################
 
-# 1. SDL2-devel (опционально)
-# Если нужен SDL2-devel — подключаем CRB + EPEL и ставим.
-# Для DocumentServer он не обязателен, поэтому можно просто удалить
-# его из списка yum install.
 
-dnf install -y epel-release
-dnf --enablerepo=crb,epel install -y SDL2-devel
+sudo dnf install -y \
+  https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+sudo dnf config-manager --set-enabled crb
+sudo dnf install -y SDL2-devel
 
 # 2. Меняем curl-minimal -> curl (и libcurl)
 dnf swap -y curl-minimal curl
