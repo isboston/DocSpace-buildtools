@@ -90,10 +90,23 @@ ${package_manager} -y install \
 #  FIXES FOR AMAZON LINUX 2023
 #######################################
 
-sudo dnf install -y \
-  https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
-sudo dnf config-manager --set-enabled crb
-sudo dnf install -y SDL2-devel
+# sudo dnf install -y \
+#   https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+# sudo dnf config-manager --set-enabled crb
+# sudo dnf install -y SDL2-devel
+
+sudo tee /etc/yum.repos.d/alma-appstream.repo << 'EOF'
+[alma-appstream]
+name = AlmaLinux 9 – AppStream (SDL2)
+baseurl = https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/
+enabled = 1
+gpgcheck = 0
+EOF
+
+sudo dnf install -y SDL2 SDL2-devel
+
+sudo dnf config-manager --set-disabled alma-appstream
+
 
 # 2. Меняем curl-minimal -> curl (и libcurl)
 dnf swap -y curl-minimal curl
@@ -142,8 +155,8 @@ if [[ $PSQLExitCode -eq $UPDATE_AVAILABLE_CODE ]]; then
 	postgresql-setup --upgrade || true
 fi
 
-sudo /usr/libexec/postgresql-16-initdb --pgdata=/var/lib/pgsql/16/data || true
-sudo systemctl enable --now postgresql-16.service
+postgresql-setup --initdb || true
+systemctl enable --now postgresql.service
 
 sed -E -i "s/(host\s+(all|replication)\s+all\s+(127\.0\.0\.1\/32|\:\:1\/128)\s+)(ident|trust|md5)/\1scram-sha-256/" /var/lib/pgsql/${PSQL_VERSION}/data/pg_hba.conf
 sed -i "s/^#\?password_encryption = .*/password_encryption = 'scram-sha-256'/" /var/lib/pgsql/${PSQL_VERSION}/data/postgresql.conf
