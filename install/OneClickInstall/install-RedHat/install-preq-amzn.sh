@@ -70,20 +70,36 @@ if [ ${INSTALL_FLUENT_BIT} == "true" ]; then
 fi
 
 ########################################
-#  ffmpeg-free for Amazon Linux 2023
+# 1. Поправить epel.repo (БЕЗ комментария)
 ########################################
-if grep -q "Amazon Linux 2023" /etc/os-release; then
-  echo "→ Enabling EPEL 9 repo"
-  cat >/etc/yum.repos.d/epel.repo <<'EOF'
+cat >/etc/yum.repos.d/epel.repo <<'EOF'
 [epel]
-name=Extra Packages for Enterprise Linux 9 – $basearch
-mirrorlist=https://mirrors.fedoraproject.org/metalink?repo=epel-9&arch=$basearch
+name=EPEL 9
+metalink=https://mirrors.fedoraproject.org/metalink?repo=epel-9&arch=$basearch
 enabled=1
 gpgcheck=0
 EOF
 
-  echo "→ Installing ffmpeg-free"
-  dnf install -y ffmpeg-free
+########################################
+# 2. Оставить Alma-AppStream включённым
+#    и дотащить librabbitmq
+########################################
+if grep -q "Amazon Linux 2023" /etc/os-release; then
+  # если репо уже создано, просто включаем
+  dnf config-manager --set-enabled alma-appstream || {
+    # если файла ещё нет – создаём
+    cat >/etc/yum.repos.d/alma-appstream.repo <<'EOF'
+[alma-appstream]
+name=AlmaLinux 9 – AppStream
+baseurl=https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/
+enabled=1
+gpgcheck=0
+EOF
+  }
+
+  dnf install -y librabbitmq ffmpeg-free
+
+
 fi
 
 rpm -q ffmpeg-free
