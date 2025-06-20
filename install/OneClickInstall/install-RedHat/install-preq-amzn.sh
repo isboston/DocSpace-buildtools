@@ -71,17 +71,68 @@ fi
 
 
 #######################################
-#  FFMPEG START
+#  FFMPEG START
 #######################################
 
+########################################
+# Install static ffmpeg + dummy rpm
+########################################
+if grep -q "Amazon Linux 2023" /etc/os-release; then
+  echo "→ Installing static ffmpeg"
 
-dnf install -y \
-  https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-39.noarch.rpm
-dnf install -y ffmpeg
+  ARCH=$(uname -m)
+  case "$ARCH" in
+    x86_64)  FFMPEG_URL="https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz" ;;
+    aarch64) FFMPEG_URL="https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-arm64-static.tar.xz" ;;
+    *) echo "Unsupported arch: $ARCH"; exit 1 ;;
+  esac
 
+  tmpdir=$(mktemp -d)
+  curl -L "$FFMPEG_URL" | tar -xJ -C "$tmpdir"
+  install -m755 "$tmpdir"/ffmpeg-*/ffmpeg "$tmpdir"/ffmpeg-*/ffprobe /usr/local/bin/
+  rm -rf "$tmpdir"
+
+  echo "→ Creating dummy ffmpeg-free rpm to satisfy DocSpace"
+
+  dnf install -y rpm-build rpmdevtools > /dev/null
+  rpmdev-setuptree
+  cp /usr/local/bin/ffmpeg  ~/rpmbuild/SOURCES/
+  cp /usr/local/bin/ffprobe ~/rpmbuild/SOURCES/
+
+  cat > ~/rpmbuild/SPECS/ffmpeg-free.spec <<'EOF'
+Name:           ffmpeg-free
+Version:        7.0.2
+Release:        1%{?dist}
+Summary:        Static FFmpeg binary provider (for DocSpace)
+License:        GPLv3+
+BuildArch:      noarch
+Provides:       ffmpeg-free
+
+%description
+Dummy package that provides ffmpeg-free for DocSpace. Includes statically linked ffmpeg and ffprobe in /usr/local/bin.
+
+%prep
+%build
+%install
+mkdir -p %{buildroot}/usr/local/bin
+install -m755 %{_sourcedir}/ffmpeg  %{buildroot}/usr/local/bin/
+install -m755 %{_sourcedir}/ffprobe %{buildroot}/usr/local/bin/
+
+%files
+/usr/local/bin/ffmpeg
+/usr/local/bin/ffprobe
+
+%changelog
+* Fri Jun 21 2025 You <you@example.com> 7.0.2-1
+- Initial dummy provider
+EOF
+
+  rpmbuild -bb ~/rpmbuild/SPECS/ffmpeg-free.spec
+  dnf install -y ~/rpmbuild/RPMS/noarch/ffmpeg-free-*.rpm
+fi
 
 #######################################
-#  FFMPEG FINISH
+#  FFMPEG FINISH
 #######################################
 
 rpm --import https://openresty.org/package/pubkey.gpg
@@ -136,20 +187,22 @@ gpgkey=https://packages.microsoft.com/keys/microsoft.asc
 EOF
 
 sudo dnf clean all && sudo dnf makecache
-
 sudo dnf install -y dotnet-sdk-9.0 --allowerasing
 
-dotnet --info || { echo "❌ dotnet install failed"; exit 1; }
 #######################################
 #  DOTNET FINISH
 #######################################
 
 
-dotnet --info
+dotnet --version
 java --version
-valkey-server -v
+valkey-server --version
 psql --version
-node -v
+node --version
+ffmpeg -version
+rpm -q ffmpeg-free
+dnf list installed ffmpeg-free
+
 
 # Set Java ${JAVA_VERSION} as the default version
 JAVA_PATH=$(find /usr/lib/jvm/ -name "java" -path "*java-${JAVA_VERSION}*" | head -1)
