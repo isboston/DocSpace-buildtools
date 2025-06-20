@@ -79,12 +79,15 @@ if grep -q "Amazon Linux 2023" /etc/os-release; then
 name=Extra Packages for Enterprise Linux 9 – $basearch
 mirrorlist=https://mirrors.fedoraproject.org/metalink?repo=epel-9&arch=$basearch
 enabled=1
-gpgcheck=0      # включите, если хотите проверять подписи
+gpgcheck=0
 EOF
 
   echo "→ Installing ffmpeg-free"
   dnf install -y ffmpeg-free
 fi
+
+rpm -q ffmpeg-free
+dnf list installed ffmpeg-free
 
 
 
@@ -109,41 +112,17 @@ ${package_manager} -y install \
 #  FIXES FOR AMAZON LINUX 2023
 #######################################
 
-sudo tee /etc/yum.repos.d/alma-appstream.repo << 'EOF'
+sudo tee /etc/yum.repos.d/alma-appstream.repo <<'EOF'
 [alma-appstream]
-name = AlmaLinux 9 – AppStream (SDL2)
+name = AlmaLinux 9 – AppStream (SDL2, OpenJDK 21)
 baseurl = https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/
 enabled = 1
 gpgcheck = 0
 EOF
 
-sudo dnf install -y SDL2 SDL2-devel
+sudo dnf install -y SDL2 SDL2-devel java-21-openjdk-headless
 
 sudo dnf config-manager --set-disabled alma-appstream
-
-
-# # 2. Меняем curl-minimal -> curl (и libcurl)
-# dnf swap -y curl-minimal curl
-# dnf swap -y libcurl-minimal libcurl
-
-# # 3. Ставим зависимости для .NET без конфликтов
-# dnf install -y libicu zlib krb5-libs openssl lttng-ust libunwind libuuid
-
-# #######################################
-# #  INSTALL .NET SDK 9.0
-# #######################################
-# DOTNET_VER=9.0.301
-# DOTNET_ROOT=/opt/dotnet
-
-# mkdir -p "$DOTNET_ROOT"
-# curl -sSL "https://dotnetcli.blob.core.windows.net/dotnet/Sdk/${DOTNET_VER}/dotnet-sdk-${DOTNET_VER}-linux-x64.tar.gz" | tar -xz -C "$DOTNET_ROOT"
-
-# # Экспортируем PATH
-# cat >/etc/profile.d/dotnet.sh <<EOF
-# export DOTNET_ROOT=${DOTNET_ROOT}
-# export PATH=\$DOTNET_ROOT:\$PATH
-# EOF
-# source /etc/profile.d/dotnet.sh
 
 # 1. Ключ Microsoft
 sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
