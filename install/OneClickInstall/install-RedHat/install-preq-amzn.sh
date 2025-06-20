@@ -138,8 +138,14 @@ fi
 #######################################
 
 rpm --import https://openresty.org/package/pubkey.gpg
-curl -o /etc/yum.repos.d/openresty.repo https://openresty.org/package/centos/openresty.repo
+curl -o /etc/yum.repos.d/openresty.repo https://openresty.org/package/amazon/openresty.repo
 sed -i "s/\$releasever/9/g" /etc/yum.repos.d/openresty.repo
+
+# rpm --import https://openresty.org/package/pubkey.gpg
+# OPENRESTY_REPO_FILE=$( [[ "$REV" -ge 9 && "$DIST" != "fedora" ]] && echo "openresty2.repo" || echo "openresty.repo" )
+# curl -o /etc/yum.repos.d/openresty.repo "https://openresty.org/package/${OPENRESTY_DISTR_NAME}/${OPENRESTY_REPO_FILE}"
+# [ "$DIST" == "fedora" ] && sed -i "s/\$releasever/$OPENRESTY_REV/g" /etc/yum.repos.d/openresty.repo
+
 
 JAVA_VERSION=21
 ${package_manager} -y install \
