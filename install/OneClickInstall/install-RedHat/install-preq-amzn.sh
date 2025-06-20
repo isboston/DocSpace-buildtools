@@ -49,17 +49,44 @@ PSQL_AVAILABLE_VERSION=$(yum list postgresql\*-server --available | awk '/^postg
 PSQL_VERSION=${PSQL_INSTALLED_VERSION:-$PSQL_AVAILABLE_VERSION}
 { yum check-update postgresql${PSQL_VERSION}; PSQLExitCode=$?; } || true
 
+#######################################
+#  ffmpeg-free dummy (Amazon Linux 2023)
+#######################################
 if grep -q "Amazon Linux 2023" /etc/os-release; then
-  echo "→ Adding RPM Fusion Free EL9"
-  dnf install -y --nogpgcheck \
-      https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-9.noarch.rpm
+  echo "→ Installing static FFmpeg"
+  ARCH=$(uname -m)
+  case "$ARCH" in
+    x86_64) FFMPEG_URL="https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz" ;;
+    aarch64|arm64) FFMPEG_URL="https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-arm64-static.tar.xz" ;;
+    *) echo "Unsupported arch $ARCH"; exit 1 ;;
+  esac
+  tmpdir=$(mktemp -d)
+  curl -L "$FFMPEG_URL" | tar -xJ -C "$tmpdir"
+  install -m 755 "$tmpdir"/ffmpeg-*/{ffmpeg,ffprobe} /usr/local/bin/
+  rm -rf "$tmpdir"
 
-  echo "→ Installing ffmpeg-free from RPM Fusion"
-  dnf --enablerepo=rpmfusion-free-updates install -y ffmpeg-free
+  echo "→ Building dummy rpm ffmpeg-free"
+  dnf install -y rpm-build > /dev/null
+  cat > /tmp/ffmpeg-free.spec <<'EOF'
+Name:       ffmpeg-free
+Version:    0.0
+Release:    1%{?dist}
+Summary:    Dummy metapackage providing ffmpeg for AL2023
+License:    MIT
+Provides:   ffmpeg-free
+Requires:   /usr/local/bin/ffmpeg
 
-  dnf config-manager --set-disabled rpmfusion-free-updates
+%description
+Placeholder package to satisfy DocSpace dependency on ffmpeg-free.
+
+%files
+/usr/local/bin/ffmpeg
+/usr/local/bin/ffprobe
+EOF
+
+  rpmbuild -bb /tmp/ffmpeg-free.spec >/dev/null
+  dnf install -y /root/rpmbuild/RPMS/*/ffmpeg-free-0.0-1*.rpm
 fi
-
 
 #add nodejs repo
 NODE_VERSION="18"
