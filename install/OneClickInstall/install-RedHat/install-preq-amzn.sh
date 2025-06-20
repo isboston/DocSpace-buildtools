@@ -69,35 +69,20 @@ if [ ${INSTALL_FLUENT_BIT} == "true" ]; then
 	DASHBOARDS_VERSION="2.18.0"
 fi
 
-########################################
-# 1. Поправить epel.repo (БЕЗ комментария)
-########################################
-cat >/etc/yum.repos.d/epel.repo <<'EOF'
-[epel]
-name=EPEL 9
-metalink=https://mirrors.fedoraproject.org/metalink?repo=epel-9&arch=$basearch
-enabled=1
-gpgcheck=0
-EOF
 
-########################################
-# 2. Оставить Alma-AppStream включённым
-#    и дотащить librabbitmq
-########################################
-dnf config-manager --set-enabled alma-appstream || {
-  cat >/etc/yum.repos.d/alma-appstream.repo <<'EOF'
-[alma-appstream]
-name=AlmaLinux 9 – AppStream
-baseurl=https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/
-enabled=1
-gpgcheck=0
-EOF
-  }
+#######################################
+#  FFMPEG START
+#######################################
 
-dnf install -y librabbitmq ffmpeg-free --enablerepo=alma-appstream,epel
 
-rpm -q librabbitmq ffmpeg-free libavformat-free
-dnf list installed ffmpeg-free
+dnf install -y \
+  https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-39.noarch.rpm
+dnf install -y ffmpeg
+
+
+#######################################
+#  FFMPEG FINISH
+#######################################
 
 rpm --import https://openresty.org/package/pubkey.gpg
 curl -o /etc/yum.repos.d/openresty.repo https://openresty.org/package/centos/openresty.repo
@@ -118,9 +103,8 @@ ${package_manager} -y install \
 # java-${JAVA_VERSION}-amazon-corretto-headless
 
 #######################################
-#  FIXES FOR AMAZON LINUX 2023
+#  SDL and JAVA START
 #######################################
-
 sudo tee /etc/yum.repos.d/alma-appstream.repo <<'EOF'
 [alma-appstream]
 name = AlmaLinux 9 – AppStream (SDL2, OpenJDK 21)
@@ -132,11 +116,16 @@ EOF
 sudo dnf install -y SDL2 SDL2-devel java-21-openjdk-headless
 
 sudo dnf config-manager --set-disabled alma-appstream
+#######################################
+#  SDL and JAVA FINISH
+#######################################
 
-# 1. Ключ Microsoft
+
+#######################################
+#  DOTNET START
+#######################################
 sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
 
-# 2. Репозиторий (RHEL 9 пакеты подходят Amazon Linux 2023)
 sudo tee /etc/yum.repos.d/microsoft-dotnet9.repo <<'EOF'
 [microsoft-dotnet9]
 name=Microsoft .NET 9 (RHEL9) – works on AL2023
@@ -146,15 +135,15 @@ gpgcheck=1
 gpgkey=https://packages.microsoft.com/keys/microsoft.asc
 EOF
 
-# 3. Обновляем метаданные
 sudo dnf clean all && sudo dnf makecache
 
-# 4. Ставим SDK 9.0 (при конфликте со старыми версиями – разрешаем замену)
 sudo dnf install -y dotnet-sdk-9.0 --allowerasing
 
-
-# Проверяем
 dotnet --info || { echo "❌ dotnet install failed"; exit 1; }
+#######################################
+#  DOTNET FINISH
+#######################################
+
 
 dotnet --info
 java --version
