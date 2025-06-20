@@ -105,11 +105,10 @@ Version:        7.0.2
 Release:        1%{?dist}
 Summary:        Static FFmpeg binary provider (for DocSpace)
 License:        GPLv3+
-BuildArch:      noarch
 Provides:       ffmpeg-free
 
 %description
-Dummy package that provides ffmpeg-free for DocSpace. Includes statically linked ffmpeg and ffprobe in /usr/local/bin.
+Dummy package that satisfies DocSpace dependency on ffmpeg-free.
 
 %prep
 %build
@@ -123,12 +122,12 @@ install -m755 %{_sourcedir}/ffprobe %{buildroot}/usr/local/bin/
 /usr/local/bin/ffprobe
 
 %changelog
-* Fri Jun 21 2025 You <you@example.com> 7.0.2-1
+* Fri Jun 20 2025 You <you@example.com> 7.0.2-1
 - Initial dummy provider
 EOF
 
   rpmbuild -bb ~/rpmbuild/SPECS/ffmpeg-free.spec
-  dnf install -y ~/rpmbuild/RPMS/noarch/ffmpeg-free-*.rpm
+  dnf install -y ~/rpmbuild/RPMS/*/ffmpeg-free-*.rpm
 fi
 
 #######################################
