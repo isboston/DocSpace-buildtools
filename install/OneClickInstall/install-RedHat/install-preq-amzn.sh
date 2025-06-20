@@ -49,6 +49,17 @@ PSQL_AVAILABLE_VERSION=$(yum list postgresql\*-server --available | awk '/^postg
 PSQL_VERSION=${PSQL_INSTALLED_VERSION:-$PSQL_AVAILABLE_VERSION}
 { yum check-update postgresql${PSQL_VERSION}; PSQLExitCode=$?; } || true
 
+if grep -q "Amazon Linux 2023" /etc/os-release; then
+  dnf install -y --nogpgcheck https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-9.noarch.rpm
+
+  dnf config-manager --set-enabled crb || true
+
+  dnf --enablerepo=rpmfusion-free install -y ffmpeg-free
+
+  dnf config-manager --set-disabled rpmfusion-free
+fi
+
+
 #add nodejs repo
 NODE_VERSION="18"
 curl -fsSL https://rpm.nodesource.com/setup_${NODE_VERSION}.x | sed '/update -y/d' | bash - || true
