@@ -88,14 +88,17 @@ if grep -q "Amazon Linux 2023" /etc/os-release; then
   esac
 
   tmpdir=$(mktemp -d)
-  curl -L "$FFMPEG_URL" | tar -xJ -C "$tmpdir"
-  install -m755 "$tmpdir"/ffmpeg-*/ffmpeg "$tmpdir"/ffmpeg-*/ffprobe /usr/local/bin/
+  curl -L "$FFMPEG_URL" -o "$tmpdir/ffmpeg.tar.xz"
+  tar -xJf "$tmpdir/ffmpeg.tar.xz" -C "$tmpdir"
+  ffmpeg_dir=$(find "$tmpdir" -type d -name 'ffmpeg-*')
+  install -m755 "$ffmpeg_dir/ffmpeg" "$ffmpeg_dir/ffprobe" /usr/local/bin/
   rm -rf "$tmpdir"
 
   echo "→ Creating dummy ffmpeg-free rpm to satisfy DocSpace"
 
-  dnf install -y rpm-build rpmdevtools > /dev/null
+  dnf install -y rpm-build rpmdevtools
   rpmdev-setuptree
+
   cp /usr/local/bin/ffmpeg  ~/rpmbuild/SOURCES/
   cp /usr/local/bin/ffprobe ~/rpmbuild/SOURCES/
 
@@ -127,7 +130,7 @@ install -m755 %{_sourcedir}/ffprobe %{buildroot}/usr/local/bin/
 EOF
 
   rpmbuild -bb ~/rpmbuild/SPECS/ffmpeg-free.spec
-  dnf install -y ~/rpmbuild/RPMS/*/ffmpeg-free-*.rpm
+  dnf install -y ~/rpmbuild/RPMS/${ARCH}/ffmpeg-free-*.rpm
 fi
 
 #######################################
