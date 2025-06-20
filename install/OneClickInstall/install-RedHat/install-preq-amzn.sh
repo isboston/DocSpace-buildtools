@@ -50,13 +50,14 @@ PSQL_VERSION=${PSQL_INSTALLED_VERSION:-$PSQL_AVAILABLE_VERSION}
 { yum check-update postgresql${PSQL_VERSION}; PSQLExitCode=$?; } || true
 
 if grep -q "Amazon Linux 2023" /etc/os-release; then
-  dnf install -y --nogpgcheck https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-9.noarch.rpm
+  echo "→ Adding RPM Fusion Free EL9"
+  dnf install -y --nogpgcheck \
+      https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-9.noarch.rpm
 
-  dnf config-manager --set-enabled crb || true
+  echo "→ Installing ffmpeg-free from RPM Fusion"
+  dnf --enablerepo=rpmfusion-free-updates install -y ffmpeg-free
 
-  dnf --enablerepo=rpmfusion-free install -y ffmpeg-free
-
-  dnf config-manager --set-disabled rpmfusion-free
+  dnf config-manager --set-disabled rpmfusion-free-updates
 fi
 
 
