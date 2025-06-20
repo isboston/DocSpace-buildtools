@@ -84,11 +84,8 @@ EOF
 # 2. Оставить Alma-AppStream включённым
 #    и дотащить librabbitmq
 ########################################
-if grep -q "Amazon Linux 2023" /etc/os-release; then
-  # если репо уже создано, просто включаем
-  dnf config-manager --set-enabled alma-appstream || {
-    # если файла ещё нет – создаём
-    cat >/etc/yum.repos.d/alma-appstream.repo <<'EOF'
+dnf config-manager --set-enabled alma-appstream || {
+  cat >/etc/yum.repos.d/alma-appstream.repo <<'EOF'
 [alma-appstream]
 name=AlmaLinux 9 – AppStream
 baseurl=https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/
@@ -97,15 +94,10 @@ gpgcheck=0
 EOF
   }
 
-  dnf install -y librabbitmq ffmpeg-free
+dnf install -y librabbitmq ffmpeg-free --enablerepo=alma-appstream,epel
 
-
-fi
-
-rpm -q ffmpeg-free
+rpm -q librabbitmq ffmpeg-free libavformat-free
 dnf list installed ffmpeg-free
-
-
 
 rpm --import https://openresty.org/package/pubkey.gpg
 curl -o /etc/yum.repos.d/openresty.repo https://openresty.org/package/centos/openresty.repo
@@ -122,7 +114,8 @@ ${package_manager} -y install \
 			rabbitmq-server$rabbitmq_version \
 			valkey \
 			expect \
-			java-${JAVA_VERSION}-amazon-corretto-headless
+
+# java-${JAVA_VERSION}-amazon-corretto-headless
 
 #######################################
 #  FIXES FOR AMAZON LINUX 2023
