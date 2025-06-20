@@ -49,45 +49,6 @@ PSQL_AVAILABLE_VERSION=$(yum list postgresql\*-server --available | awk '/^postg
 PSQL_VERSION=${PSQL_INSTALLED_VERSION:-$PSQL_AVAILABLE_VERSION}
 { yum check-update postgresql${PSQL_VERSION}; PSQLExitCode=$?; } || true
 
-#######################################
-#  ffmpeg-free dummy (Amazon Linux 2023)
-#######################################
-if grep -q "Amazon Linux 2023" /etc/os-release; then
-  echo "→ Installing static FFmpeg"
-  ARCH=$(uname -m)
-  case "$ARCH" in
-    x86_64) FFMPEG_URL="https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz" ;;
-    aarch64|arm64) FFMPEG_URL="https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-arm64-static.tar.xz" ;;
-    *) echo "Unsupported arch $ARCH"; exit 1 ;;
-  esac
-  tmpdir=$(mktemp -d)
-  curl -L "$FFMPEG_URL" | tar -xJ -C "$tmpdir"
-  install -m 755 "$tmpdir"/ffmpeg-*/{ffmpeg,ffprobe} /usr/local/bin/
-  rm -rf "$tmpdir"
-
-  echo "→ Building dummy rpm ffmpeg-free"
-  dnf install -y rpm-build > /dev/null
-  cat > /tmp/ffmpeg-free.spec <<'EOF'
-Name:       ffmpeg-free
-Version:    0.0
-Release:    1%{?dist}
-Summary:    Dummy metapackage providing ffmpeg for AL2023
-License:    MIT
-Provides:   ffmpeg-free
-Requires:   /usr/local/bin/ffmpeg
-
-%description
-Placeholder package to satisfy DocSpace dependency on ffmpeg-free.
-
-%files
-/usr/local/bin/ffmpeg
-/usr/local/bin/ffprobe
-EOF
-
-  rpmbuild -bb /tmp/ffmpeg-free.spec >/dev/null
-  dnf install -y /root/rpmbuild/RPMS/*/ffmpeg-free-0.0-1*.rpm
-fi
-
 #add nodejs repo
 NODE_VERSION="18"
 curl -fsSL https://rpm.nodesource.com/setup_${NODE_VERSION}.x | sed '/update -y/d' | bash - || true
@@ -107,6 +68,25 @@ if [ ${INSTALL_FLUENT_BIT} == "true" ]; then
 	curl -SL https://artifacts.opensearch.org/releases/bundle/opensearch-dashboards/2.x/opensearch-dashboards-2.x.repo -o /etc/yum.repos.d/opensearch-dashboards-2.x.repo
 	DASHBOARDS_VERSION="2.18.0"
 fi
+
+########################################
+#  ffmpeg-free for Amazon Linux 2023
+########################################
+if grep -q "Amazon Linux 2023" /etc/os-release; then
+  echo "→ Enabling EPEL 9 repo"
+  cat >/etc/yum.repos.d/epel.repo <<'EOF'
+[epel]
+name=Extra Packages for Enterprise Linux 9 – $basearch
+mirrorlist=https://mirrors.fedoraproject.org/metalink?repo=epel-9&arch=$basearch
+enabled=1
+gpgcheck=0      # включите, если хотите проверять подписи
+EOF
+
+  echo "→ Installing ffmpeg-free"
+  dnf install -y ffmpeg-free
+fi
+
+
 
 rpm --import https://openresty.org/package/pubkey.gpg
 curl -o /etc/yum.repos.d/openresty.repo https://openresty.org/package/centos/openresty.repo
