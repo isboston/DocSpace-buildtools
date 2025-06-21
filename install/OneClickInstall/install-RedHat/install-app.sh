@@ -43,14 +43,14 @@ if [ "${MYSQL_FIRST_TIME_INSTALL}" = "true" ]; then
 		MYSQL_TEMPORARY_ROOT_PASS=$(cat /var/log/mysqld.log | grep "temporary password" | rev | cut -d " " -f 1 | rev | tail -1)
 	fi
 
-	if [ -z "$MYSQL_TEMPORARY_ROOT_PASS" ]; then
-        MYSQL_TEMPORARY_ROOT_PASS=$(journalctl -u mysqld --no-pager \
-            | grep -oP 'A temporary password is generated .*: \K.*' | tail -1)
-    fi
+	# if [ -z "$MYSQL_TEMPORARY_ROOT_PASS" ]; then
+    #     MYSQL_TEMPORARY_ROOT_PASS=$(journalctl -u mysqld --no-pager \
+    #         | grep -oP 'A temporary password is generated .*: \K.*' | tail -1)
+    # fi
 
-	if [ -z "$MYSQL_TEMPORARY_ROOT_PASS" ]; then
-        MYSQL_TEMPORARY_ROOT_PASS=$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c16)
-    fi
+	# if [ -z "$MYSQL_TEMPORARY_ROOT_PASS" ]; then
+    #     MYSQL_TEMPORARY_ROOT_PASS=$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c16)
+    # fi
 
 	while ! mysqladmin ping -u root --silent; do
 		sleep 1
