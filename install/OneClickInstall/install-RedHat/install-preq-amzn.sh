@@ -24,7 +24,13 @@ fi
 
 #add rabbitmq & erlang repo
 curl -s https://packagecloud.io/install/repositories/rabbitmq/rabbitmq-server/script.rpm.sh | os=el dist=9 bash
-# curl -s https://packagecloud.io/install/repositories/rabbitmq/erlang/script.rpm.sh | os=el dist=9 bash
+if [[ "$(uname -m)" =~ (arm|aarch) ]]; then
+    ERLANG_LATEST_URL=$(curl -s https://api.github.com/repos/rabbitmq/erlang-rpm/releases | \
+        jq -r '.[] | .assets[]? | select(.name | test("erlang-[0-9\\.]+-1\\.el" + 9 + "\\.aarch64\\.rpm$")) | .browser_download_url' | head -n1)
+    yum install -y "${ERLANG_LATEST_URL}"
+else
+    curl -s https://packagecloud.io/install/repositories/rabbitmq/erlang/script.rpm.sh | os=el dist=9 bash
+fi
 
 if rpm -q rabbitmq-server; then
     if [ "$(yum list installed rabbitmq-server | awk 'NR>1 {gsub(/^@/, "", $NF); print $NF}')" != "$(repoquery rabbitmq-server --qf='%{ui_from_repo}')" ]; then
@@ -34,14 +40,6 @@ if rpm -q rabbitmq-server; then
         echo $RES_RABBITMQ_INSTALLATION
         read_rabbitmq_update
     fi
-fi
-
-if [[ "$(uname -m)" =~ (arm|aarch) ]]; then
-    ERLANG_LATEST_URL=$(curl -s https://api.github.com/repos/rabbitmq/erlang-rpm/releases | \
-        jq -r '.[] | .assets[]? | select(.name | test("erlang-[0-9\\.]+-1\\.el" + 9 + "\\.aarch64\\.rpm$")) | .browser_download_url' | head -n1)
-    yum install -y "${ERLANG_LATEST_URL}"
-else
-    curl -s https://packagecloud.io/install/repositories/rabbitmq/erlang/script.rpm.sh | os=el dist=9 bash
 fi
 
 PSQL_INSTALLED_VERSION=$(rpm -qa | grep -Eo '^postgresql[0-9]+' | sed 's/^postgresql//' | sort -nr | head -1)
@@ -72,7 +70,6 @@ if [ ${INSTALL_FLUENT_BIT} == "true" ]; then
 	curl -SL https://artifacts.opensearch.org/releases/bundle/opensearch-dashboards/2.x/opensearch-dashboards-2.x.repo -o /etc/yum.repos.d/opensearch-dashboards-2.x.repo
 	DASHBOARDS_VERSION="2.18.0"
 fi
-
 
 #######################################
 #  FFMPEG START
@@ -152,7 +149,7 @@ dnf install -y ~/rpmbuild/RPMS/${ARCH}/ffmpeg-free-*.rpm
 #######################################
 
 rpm --import https://openresty.org/package/pubkey.gpg
-curl -o /etc/yum.repos.d/openresty.repo https://openresty.org/package/amazon/openresty.repo
+curl -o /etc/yum.repos.d/openresty.repo https://openresty.org/package/"${OPENRESTY_DISTR_NAME}"/openresty.repo
 sed -i "s/\$releasever/2023/g" /etc/yum.repos.d/openresty.repo
 
 JAVA_VERSION=21
@@ -167,8 +164,6 @@ ${package_manager} -y install \
 			valkey \
 			expect \
 
-# java-${JAVA_VERSION}-amazon-corretto-headless
-
 #######################################
 #  SDL and JAVA START
 #######################################
@@ -180,13 +175,12 @@ enabled = 1
 gpgcheck = 0
 EOF
 
-sudo dnf install -y SDL2 SDL2-devel java-21-openjdk-headless
+sudo dnf install -y SDL2 SDL2-devel java-${JAVA_VERSION}-openjdk-headless
 
 sudo dnf config-manager --set-disabled alma-appstream
 #######################################
 #  SDL and JAVA FINISH
 #######################################
-
 
 #######################################
 #  DOTNET START
@@ -195,7 +189,7 @@ sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
 
 sudo tee /etc/yum.repos.d/microsoft-dotnet9.repo <<'EOF'
 [microsoft-dotnet9]
-name=Microsoft .NET 9 (RHEL9) - works on AL2023
+name=Microsoft .NET 9 (RHEL9)
 baseurl=https://packages.microsoft.com/yumrepos/microsoft-rhel9.0-prod
 enabled=1
 gpgcheck=1
@@ -209,24 +203,13 @@ sudo dnf install -y dotnet-sdk-9.0 --allowerasing
 #  DOTNET FINISH
 #######################################
 
-
-dotnet --version
-java --version
-valkey-server --version
-psql --version
-node --version
-ffmpeg -version
-rpm -q ffmpeg-free
-dnf list installed ffmpeg-free
-
-
 # Set Java ${JAVA_VERSION} as the default version
 JAVA_PATH=$(find /usr/lib/jvm/ -name "java" -path "*java-${JAVA_VERSION}*" | head -1)
 alternatives --install /usr/bin/java java "$JAVA_PATH" 100 && alternatives --set java "$JAVA_PATH"
 
 #add repo, install fluent-bit
 if [ "${INSTALL_FLUENT_BIT}" == "true" ]; then 
-	[ "$DIST" != "fedora" ] && curl https://raw.githubusercontent.com/fluent/fluent-bit/master/install.sh | bash || yum -y install fluent-bit
+	curl https://raw.githubusercontent.com/fluent/fluent-bit/master/install.sh | bash || yum -y install fluent-bit
 	${package_manager} -y install opensearch-dashboards-"${DASHBOARDS_VERSION}" --enablerepo=opensearch-dashboards-2.x
 fi
 

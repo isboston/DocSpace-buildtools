@@ -60,15 +60,6 @@ DIST=${DIST:-$(awk -F= '/^ID=/ {gsub(/"/, "", $2); print tolower($2)}' /etc/os-r
 REV=$(awk -F= '/^VERSION_ID=/ {gsub(/"/, "", $2); print tolower($2)}' /etc/os-release)
 REV=${REV:-"7"}
 
-# DEBUG INFO
-echo "🔧 Detected distribution: DIST=${DIST}, REV=${REV}"
-echo "🔧 /etc/os-release content:"
-cat /etc/os-release
-echo "🔧 uname -a:"
-uname -a
-echo "🔧 rpm -qa | grep -E 'release' output:"
-rpm -qa | grep -E 'release'
-
 REMI_DISTR_NAME="enterprise"
 RPMFUSION_DISTR_NAME="el"
 MYSQL_DISTR_NAME="el"
@@ -78,8 +69,6 @@ SUPPORTED_FEDORA_FLAG="true"
 if [ "$DIST" = "amzn" ]; then
     REV=9
     OPENRESTY_DISTR_NAME="amazon"
-    MYSQL_DISTR_NAME="el"
-    :
 fi
 
 if [ "$DIST" == "fedora" ]; then
