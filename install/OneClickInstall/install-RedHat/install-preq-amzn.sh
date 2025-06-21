@@ -32,20 +32,10 @@ else
     curl -s https://packagecloud.io/install/repositories/rabbitmq/erlang/script.rpm.sh | os=el dist=9 bash
 fi
 
-if rpm -q rabbitmq-server; then
-    if [ "$(yum list installed rabbitmq-server | awk 'NR>1 {gsub(/^@/, "", $NF); print $NF}')" != "$(repoquery rabbitmq-server --qf='%{ui_from_repo}')" ]; then
-        res_rabbitmq_update
-        echo $RES_RABBITMQ_VERSION
-        echo $RES_RABBITMQ_REMINDER
-        echo $RES_RABBITMQ_INSTALLATION
-        read_rabbitmq_update
-    fi
-fi
-
 PSQL_INSTALLED_VERSION=$(rpm -qa | grep -Eo '^postgresql[0-9]+' | sed 's/^postgresql//' | sort -nr | head -1)
 PSQL_AVAILABLE_VERSION=$(yum list postgresql\*-server --available | awk '/^postgresql[0-9]+-server/ {gsub("postgresql|-server.*","",$1); print $1}' | sort -nr | head -1)
 PSQL_VERSION=${PSQL_INSTALLED_VERSION:-$PSQL_AVAILABLE_VERSION}
-{ yum check-update postgresql${PSQL_VERSION}; PSQLExitCode=$?; } || true
+{ yum check-update postgresql"${PSQL_VERSION}"; PSQLExitCode=$?; } || true
 
 #add nodejs repo
 NODE_VERSION="18"
@@ -175,8 +165,7 @@ enabled = 1
 gpgcheck = 0
 EOF
 
-sudo dnf install -y SDL2 SDL2-devel java-${JAVA_VERSION}-openjdk-headless
-
+sudo dnf install -y SDL2 java-${JAVA_VERSION}-openjdk-headless
 sudo dnf config-manager --set-disabled alma-appstream
 #######################################
 #  SDL and JAVA FINISH
@@ -198,7 +187,6 @@ EOF
 
 sudo dnf clean all && sudo dnf makecache
 sudo dnf install -y dotnet-sdk-9.0 --allowerasing
-
 #######################################
 #  DOTNET FINISH
 #######################################
