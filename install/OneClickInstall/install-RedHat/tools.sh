@@ -63,8 +63,6 @@ REV=${REV:-$(awk -F= '/^VERSION_ID=/ {gsub(/"/, "", $2); print tolower($2)}' /et
 echo "🔧 Detected distribution: DIST=${DIST}, REV=${REV}"
 echo "🔧 /etc/os-release content:"
 cat /etc/os-release
-echo "🔧 /etc/redhat-release content (if exists):"
-[ -f /etc/redhat-release ] && cat /etc/redhat-release || echo "(not found)"
 echo "🔧 uname -a:"
 uname -a
 echo "🔧 rpm -qa | grep -E 'release' output:"

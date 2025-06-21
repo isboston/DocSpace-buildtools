@@ -36,57 +36,43 @@ MYSQL_SERVER_DB_NAME=${MYSQL_SERVER_DB_NAME:-"${package_sysname}"}
 MYSQL_SERVER_USER=${MYSQL_SERVER_USER:-"root"}
 MYSQL_SERVER_PORT=${MYSQL_SERVER_PORT:-3306}
 
-# if [ "${MYSQL_FIRST_TIME_INSTALL}" = "true" ]; then
-# 	MYSQL_TEMPORARY_ROOT_PASS=""
-
-# 	if [ -f "/var/log/mysqld.log" ]; then
-# 		MYSQL_TEMPORARY_ROOT_PASS=$(cat /var/log/mysqld.log | grep "temporary password" | rev | cut -d " " -f 1 | rev | tail -1)
-# 	fi
-
-# 	while ! mysqladmin ping -u root --silent; do
-# 		sleep 1
-# 	done
-
-# 	if ! mysql "-u$MYSQL_SERVER_USER" "-p$MYSQL_TEMPORARY_ROOT_PASS" -e ";" >/dev/null 2>&1; then
-# 		if [ -z "$MYSQL_TEMPORARY_ROOT_PASS" ]; then
-# 		   MYSQL="mysql --connect-expired-password -u$MYSQL_SERVER_USER -D mysql"
-# 		else
-# 		   MYSQL="mysql --connect-expired-password -u$MYSQL_SERVER_USER -p${MYSQL_TEMPORARY_ROOT_PASS} -D mysql"
-# 		   MYSQL_ROOT_PASS=$(echo "$MYSQL_TEMPORARY_ROOT_PASS" | sed -e 's/;/%/g' -e 's/=/%/g')
-# 		fi
-
-# 		MYSQL_AUTHENTICATION_PLUGIN=$($MYSQL -e "SHOW VARIABLES LIKE 'default_authentication_plugin';" -s | awk '{print $2}')
-# 		MYSQL_AUTHENTICATION_PLUGIN=${MYSQL_AUTHENTICATION_PLUGIN:-caching_sha2_password}
-
-# 		$MYSQL -e "ALTER USER '${MYSQL_SERVER_USER}'@'localhost' IDENTIFIED WITH ${MYSQL_AUTHENTICATION_PLUGIN} BY '${MYSQL_ROOT_PASS}'" >/dev/null 2>&1 || \
-# 		$MYSQL -e "UPDATE user SET plugin='${MYSQL_AUTHENTICATION_PLUGIN}', authentication_string=PASSWORD('${MYSQL_ROOT_PASS}') WHERE user='${MYSQL_SERVER_USER}' and host='localhost';"
-
-# 		systemctl restart mysqld
-# 	fi
-# fi
-
-MYSQL_SERVER_HOST=${MYSQL_SERVER_HOST:-"localhost"}
-MYSQL_SERVER_DB_NAME=${MYSQL_SERVER_DB_NAME:-"${package_sysname}"}
-MYSQL_SERVER_USER=${MYSQL_SERVER_USER:-"root"}
-MYSQL_SERVER_PORT=${MYSQL_SERVER_PORT:-3306}
-
 if [ "${MYSQL_FIRST_TIME_INSTALL}" = "true" ]; then
 	MYSQL_TEMPORARY_ROOT_PASS=""
 
 	if [ -f "/var/log/mysqld.log" ]; then
-		MYSQL_TEMPORARY_ROOT_PASS=$(grep "temporary password" /var/log/mysqld.log | awk '{print $NF}' | tail -1)
+		MYSQL_TEMPORARY_ROOT_PASS=$(cat /var/log/mysqld.log | grep "temporary password" | rev | cut -d " " -f 1 | rev | tail -1)
 	fi
 
-	while ! mysqladmin ping -h127.0.0.1 -P${MYSQL_SERVER_PORT} -u root --silent; do
+	if [ -z "$MYSQL_TEMPORARY_ROOT_PASS" ]; then
+        MYSQL_TEMPORARY_ROOT_PASS=$(journalctl -u mysqld --no-pager \
+            | grep -oP 'A temporary password is generated .*: \K.*' | tail -1)
+    fi
+
+	if [ -z "$MYSQL_TEMPORARY_ROOT_PASS" ]; then
+        MYSQL_TEMPORARY_ROOT_PASS=$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c16)
+    fi
+
+	while ! mysqladmin ping -u root --silent; do
 		sleep 1
 	done
 
-	if [ -n "$MYSQL_TEMPORARY_ROOT_PASS" ]; then
-		mysql --connect-expired-password -uroot -p"${MYSQL_TEMPORARY_ROOT_PASS}" \
-			-e "ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_TEMPORARY_ROOT_PASS}';"
+	if ! mysql "-u$MYSQL_SERVER_USER" "-p$MYSQL_TEMPORARY_ROOT_PASS" -e ";" >/dev/null 2>&1; then
+		if [ -z "$MYSQL_TEMPORARY_ROOT_PASS" ]; then
+		   MYSQL="mysql --connect-expired-password -u$MYSQL_SERVER_USER -D mysql"
+		else
+		   MYSQL="mysql --connect-expired-password -u$MYSQL_SERVER_USER -p${MYSQL_TEMPORARY_ROOT_PASS} -D mysql"
+		   MYSQL_ROOT_PASS=$(echo "$MYSQL_TEMPORARY_ROOT_PASS" | sed -e 's/;/%/g' -e 's/=/%/g')
+		fi
+
+		MYSQL_AUTHENTICATION_PLUGIN=$($MYSQL -e "SHOW VARIABLES LIKE 'default_authentication_plugin';" -s | awk '{print $2}')
+		MYSQL_AUTHENTICATION_PLUGIN=${MYSQL_AUTHENTICATION_PLUGIN:-caching_sha2_password}
+
+		$MYSQL -e "ALTER USER '${MYSQL_SERVER_USER}'@'localhost' IDENTIFIED WITH ${MYSQL_AUTHENTICATION_PLUGIN} BY '${MYSQL_ROOT_PASS}'" >/dev/null 2>&1 || \
+		$MYSQL -e "UPDATE user SET plugin='${MYSQL_AUTHENTICATION_PLUGIN}', authentication_string=PASSWORD('${MYSQL_ROOT_PASS}') WHERE user='${MYSQL_SERVER_USER}' and host='localhost';"
+
+		systemctl restart mysqld
 	fi
 fi
-
 
 if [ "$DOCUMENT_SERVER_INSTALLED" = "false" ]; then
 	declare -x DS_PORT=8083

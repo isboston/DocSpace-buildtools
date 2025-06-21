@@ -161,12 +161,6 @@ rpm --import https://openresty.org/package/pubkey.gpg
 curl -o /etc/yum.repos.d/openresty.repo https://openresty.org/package/amazon/openresty.repo
 sed -i "s/\$releasever/2023/g" /etc/yum.repos.d/openresty.repo
 
-# rpm --import https://openresty.org/package/pubkey.gpg
-# OPENRESTY_REPO_FILE=$( [[ "$REV" -ge 9 && "$DIST" != "fedora" ]] && echo "openresty2.repo" || echo "openresty.repo" )
-# curl -o /etc/yum.repos.d/openresty.repo "https://openresty.org/package/${OPENRESTY_DISTR_NAME}/${OPENRESTY_REPO_FILE}"
-# [ "$DIST" == "fedora" ] && sed -i "s/\$releasever/$OPENRESTY_REV/g" /etc/yum.repos.d/openresty.repo
-
-
 JAVA_VERSION=21
 ${package_manager} -y install \
 			python3 \
@@ -207,7 +201,7 @@ sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
 
 sudo tee /etc/yum.repos.d/microsoft-dotnet9.repo <<'EOF'
 [microsoft-dotnet9]
-name=Microsoft .NET 9 (RHEL9) – works on AL2023
+name=Microsoft .NET 9 (RHEL9) - works on AL2023
 baseurl=https://packages.microsoft.com/yumrepos/microsoft-rhel9.0-prod
 enabled=1
 gpgcheck=1
