@@ -78,52 +78,44 @@ fi
 #  FFMPEG START
 #######################################
 
-########################################
-# Install static ffmpeg + dummy rpm
-########################################
-if grep -q "Amazon Linux 2023" /etc/os-release; then
-  echo "→ Installing static ffmpeg"
+ARCH=$(uname -m)
+case "$ARCH" in
+  x86_64)  FFMPEG_URL="https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz" ;;
+  aarch64) FFMPEG_URL="https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-arm64-static.tar.xz" ;;
+  *) echo "Unsupported arch: $ARCH"; exit 1 ;;
+esac
 
-  ARCH=$(uname -m)
-  case "$ARCH" in
-    x86_64)  FFMPEG_URL="https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz" ;;
-    aarch64) FFMPEG_URL="https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-arm64-static.tar.xz" ;;
-    *) echo "Unsupported arch: $ARCH"; exit 1 ;;
-  esac
+tmpdir=$(mktemp -d)
+for i in {1..3}; do
+  curl -L --connect-timeout 15 --max-time 60 -o "$tmpdir/ffmpeg.tar.xz" "$FFMPEG_URL" && [ -s "$tmpdir/ffmpeg.tar.xz" ] && break
+  echo "Download attempt $i failed. Retrying in 5s..."
+  sleep 5
+done
 
-  tmpdir=$(mktemp -d)
-  for i in {1..3}; do
-    curl -L --connect-timeout 15 --max-time 60 -o "$tmpdir/ffmpeg.tar.xz" "$FFMPEG_URL" && [ -s "$tmpdir/ffmpeg.tar.xz" ] && break
-    echo "Download attempt $i failed. Retrying in 5s..."
-    sleep 5
-  done
-
-  if [ ! -s "$tmpdir/ffmpeg.tar.xz" ]; then
-    echo "Failed to download FFmpeg static archive after multiple attempts. Aborting."
-    rm -rf "$tmpdir"
-    exit 1
-  fi
-
-  tar -xJf "$tmpdir/ffmpeg.tar.xz" -C "$tmpdir"
-  ffmpeg_dir=$(find "$tmpdir" -type d -name 'ffmpeg-*' | head -1)
-
-  if [ -x "$ffmpeg_dir/ffmpeg" ] && [ -x "$ffmpeg_dir/ffprobe" ]; then
-    install -m755 "$ffmpeg_dir/ffmpeg" "$ffmpeg_dir/ffprobe" /usr/local/bin/
-  else
-    echo "ffmpeg or ffprobe binary not found in archive. Aborting."
-    rm -rf "$tmpdir"
-    exit 1
-  fi
-
+if [ ! -s "$tmpdir/ffmpeg.tar.xz" ]; then
+  echo "Failed to download FFmpeg static archive after multiple attempts. Aborting."
   rm -rf "$tmpdir"
+  exit 1
+fi
 
-  echo "→ Creating dummy ffmpeg-free rpm to satisfy DocSpace"
+tar -xJf "$tmpdir/ffmpeg.tar.xz" -C "$tmpdir"
+ffmpeg_dir=$(find "$tmpdir" -type d -name 'ffmpeg-*' | head -1)
 
-  dnf install -y rpm-build rpmdevtools
-  rpmdev-setuptree
+if [ -x "$ffmpeg_dir/ffmpeg" ] && [ -x "$ffmpeg_dir/ffprobe" ]; then
+  install -m755 "$ffmpeg_dir/ffmpeg" "$ffmpeg_dir/ffprobe" /usr/local/bin/
+else
+  echo "ffmpeg or ffprobe binary not found in archive. Aborting."
+  rm -rf "$tmpdir"
+  exit 1
+fi
 
-  cp /usr/local/bin/ffmpeg  ~/rpmbuild/SOURCES/
-  cp /usr/local/bin/ffprobe ~/rpmbuild/SOURCES/
+rm -rf "$tmpdir"
+
+dnf install -y rpm-build rpmdevtools
+rpmdev-setuptree
+
+cp /usr/local/bin/ffmpeg  ~/rpmbuild/SOURCES/
+cp /usr/local/bin/ffprobe ~/rpmbuild/SOURCES/
 
   cat > ~/rpmbuild/SPECS/ffmpeg-free.spec <<'EOF'
 Name:           ffmpeg-free
@@ -152,10 +144,8 @@ install -m755 %{_sourcedir}/ffprobe %{buildroot}/usr/local/bin/
 - Initial dummy provider
 EOF
 
-  rpmbuild -bb ~/rpmbuild/SPECS/ffmpeg-free.spec
-  dnf install -y ~/rpmbuild/RPMS/${ARCH}/ffmpeg-free-*.rpm
-fi
-
+rpmbuild -bb ~/rpmbuild/SPECS/ffmpeg-free.spec
+dnf install -y ~/rpmbuild/RPMS/${ARCH}/ffmpeg-free-*.rpm
 
 #######################################
 #  FFMPEG FINISH
@@ -184,7 +174,7 @@ ${package_manager} -y install \
 #######################################
 sudo tee /etc/yum.repos.d/alma-appstream.repo <<'EOF'
 [alma-appstream]
-name = AlmaLinux 9 – AppStream (SDL2, OpenJDK 21)
+name = AlmaLinux 9 - AppStream (SDL2, OpenJDK 21)
 baseurl = https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/
 enabled = 1
 gpgcheck = 0

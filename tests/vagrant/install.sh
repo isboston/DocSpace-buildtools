@@ -136,7 +136,6 @@ EOF
           [[ "${TEST_REPO_ENABLE}" == 'true' ]] && add-repo-rpm
           ;;
       amzn)
-          local REV=$(sed -E 's/[^0-9]+([0-9]+).*/\1/' /etc/redhat-release)
           [[ "${TEST_REPO_ENABLE}" == 'true' ]] && add-repo-rpm
           ;;
       *)
