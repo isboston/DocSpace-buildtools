@@ -57,7 +57,7 @@ UPDATE_AVAILABLE_CODE=100
 DIST=$(rpm -qa --queryformat '%{NAME}\n' | grep -E 'centos-release|redhat-release|fedora-release' | awk -F '-' '{print $1}' | head -n 1)
 DIST=${DIST:-$(awk -F= '/^ID=/ {gsub(/"/, "", $2); print tolower($2)}' /etc/os-release)}
 [[ "$DIST" =~ ^(centos|redhat|fedora|amzn)$ ]] || DIST="centos"
-REV=$(sed -n 's/.*release\ \([0-9]*\).*/\1/p' /etc/redhat-release)
+REV=$(awk -F= '/^VERSION_ID=/ {gsub(/"/, "", $2); print tolower($2)}' /etc/os-release)
 REV=${REV:-"7"}
 
 # DEBUG INFO
