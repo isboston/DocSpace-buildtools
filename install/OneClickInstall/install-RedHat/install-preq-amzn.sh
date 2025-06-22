@@ -67,14 +67,12 @@ fi
 #  – без сборки, с подробным логом
 ########################################################################
 
-set -euo pipefail          # падаем при первой же ошибке
 LOG=/var/log/docspace_ffmpeg_setup.log
 
 # дублируем всё и в файл, и на stdout
 exec > >(tee -a "$LOG") 2>&1
 echo "# $(date)  === DocSpace FFmpeg-free installer started ==="
 
-set -x                     # включаем трассировку команд
 
 ### 1. Создаём временный репо-файл (сразу disabled) ####################
 cat >/etc/yum.repos.d/temp-ffmpeg.repo <<'EOF'
@@ -113,7 +111,6 @@ dnf config-manager --set-disabled alma-appstream alma-crb epel-9
 # curl -L "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-${SUFFIX}-static.tar.xz" \
 #   | tar -xJ --strip-components=1 -C /usr/local/bin ffmpeg-*/{ffmpeg,ffprobe}
 
-set +x                     # выключаем трассировку
 echo "# $(date)  === FFmpeg-free install finished OK ==="
 
 
