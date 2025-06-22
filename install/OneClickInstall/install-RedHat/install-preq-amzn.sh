@@ -62,21 +62,38 @@ if [ ${INSTALL_FLUENT_BIT} == "true" ]; then
 fi
 
 #######################################
-#  FFMPEG FROM COPR START
+#  FFMPEG via EPEL START
 #######################################
-cat >/etc/yum.repos.d/copr-ligenix-enterprise-multimedia.repo <<'EOF'
-[copr-ligenix-enterprise-multimedia]
-name=Copr multimedia EL9
-baseurl=https://download.copr.fedorainfracloud.org/results/ligenix/enterprise-multimedia/epel-9-$basearch/
-enabled=1
+
+# 1) Добавляем EPEL 9 — пустой .repo без epel-release
+sudo tee /etc/yum.repos.d/epel-temp.repo <<'EOF'
+[epel-temp]
+name=EPEL 9 Everything
+baseurl=https://dl.fedoraproject.org/pub/epel/9/Everything/$basearch/
+enabled=0
 gpgcheck=0
 EOF
 
-sudo dnf install -y ffmpeg-free
-sudo dnf config-manager --set-disabled copr-ligenix-enterprise-multimedia
+# 2) Добавляем AlmaLinux CRB (нужен для редких dev-зависимостей типа libplacebo)
+sudo tee /etc/yum.repos.d/alma-crb.repo <<'EOF'
+[alma-crb]
+name=AlmaLinux 9 - CRB
+baseurl=https://repo.almalinux.org/almalinux/9/CRB/$basearch/os/
+enabled=0
+gpgcheck=0
+EOF
+
+# 3) Ставим ffmpeg-free и всё, что он попросит.
+#    Alma AppStream уже подключали выше для SDL2 — включаем и его.
+sudo dnf install -y \
+     --enablerepo=epel-temp,alma-appstream,alma-crb \
+     ffmpeg-free
+
+# 4) Отключаем временные репы, чтобы они не участвовали в дальнейших апдейтах
+sudo dnf config-manager --set-disabled epel-temp alma-crb
 
 #######################################
-#  FFMPEG FROM COPR FINISH
+#  FFMPEG via EPEL FINISH
 #######################################
 
 
