@@ -62,39 +62,20 @@ if [ ${INSTALL_FLUENT_BIT} == "true" ]; then
 fi
 
 #######################################
-#  FFMPEG START (Corrected Method for AL2023)
+#  FFMPEG FROM COPR START
 #######################################
+sudo dnf -y install dnf-plugins-core   # если плагин copr ещё не стоит
 
-# Create the RPM Fusion 'free' repository configuration file manually
-# This bypasses the dependency check on 'epel-release' or 'redhat-release'
-# which fails on Amazon Linux 2023. We explicitly use the EL9 repository path.
-echo "Creating RPM Fusion repository file..."
-sudo tee /etc/yum.repos.d/rpmfusion-free.repo <<'EOF'
-[rpmfusion-free]
-name=RPM Fusion for EL 9 - Free
-baseurl=https://mirrors.rpmfusion.org/free/el/updates/9/x86_64/
-#metalink=https://mirrors.rpmfusion.org/metalink?repo=free-el-9&arch=$basearch
-enabled=1
-gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-rpmfusion-free-el-9
-EOF
-
-# Import the GPG key for the repository
-echo "Importing RPM Fusion GPG key..."
-sudo rpm --import https://rpmfusion.org/keys?action=AttachFile&do=get&target=RPM-GPG-KEY-rpmfusion-free-el-9
-
-# Install ffmpeg-free using the now available repository
-echo "Installing ffmpeg-free..."
+# включаем репо ровно на одну установку
+sudo dnf copr enable -y ligenix/enterprise-multimedia
 sudo dnf install -y ffmpeg-free
 
-# Disable the repository to keep the system clean and avoid potential conflicts
-echo "Disabling RPM Fusion repository..."
-sudo dnf config-manager --set-disabled rpmfusion-free
-
-echo "FFmpeg installed successfully via RPM Fusion."
-
+# чтобы в будущем пакеты не обновлялись сами,
+# сразу выключаем репо (оно останется в системе, но disabled)
+sudo dnf config-manager --set-disabled \
+      copr:copr.fedorainfracloud.org:ligenix:enterprise-multimedia
 #######################################
-#  FFMPEG FINISH
+#  FFMPEG FROM COPR FINISH
 #######################################
 
 
