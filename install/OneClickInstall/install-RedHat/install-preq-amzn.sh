@@ -64,16 +64,17 @@ fi
 #######################################
 #  FFMPEG FROM COPR START
 #######################################
-sudo dnf -y install dnf-plugins-core   # если плагин copr ещё не стоит
+cat >/etc/yum.repos.d/copr-ligenix-enterprise-multimedia.repo <<'EOF'
+[copr-ligenix-enterprise-multimedia]
+name=Copr multimedia EL9
+baseurl=https://download.copr.fedorainfracloud.org/results/ligenix/enterprise-multimedia/epel-9-$basearch/
+enabled=1
+gpgcheck=0
+EOF
 
-# включаем репо ровно на одну установку
-sudo dnf copr enable -y ligenix/enterprise-multimedia
 sudo dnf install -y ffmpeg-free
+sudo dnf config-manager --set-disabled copr-ligenix-enterprise-multimedia
 
-# чтобы в будущем пакеты не обновлялись сами,
-# сразу выключаем репо (оно останется в системе, но disabled)
-sudo dnf config-manager --set-disabled \
-      copr:copr.fedorainfracloud.org:ligenix:enterprise-multimedia
 #######################################
 #  FFMPEG FROM COPR FINISH
 #######################################
