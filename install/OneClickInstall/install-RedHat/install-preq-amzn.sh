@@ -61,40 +61,61 @@ if [ ${INSTALL_FLUENT_BIT} == "true" ]; then
 	DASHBOARDS_VERSION="2.18.0"
 fi
 
-#######################################
-#  FFMPEG via EPEL START
-#######################################
+#!/usr/bin/env bash
+########################################################################
+#  FFmpeg-free install for Amazon Linux 2023
+#  – без сборки, с подробным логом
+########################################################################
 
-# 1) Добавляем EPEL 9 — пустой .repo без epel-release
-sudo tee /etc/yum.repos.d/epel-temp.repo <<'EOF'
-[epel-temp]
+set -euo pipefail          # падаем при первой же ошибке
+LOG=/var/log/docspace_ffmpeg_setup.log
+
+# дублируем всё и в файл, и на stdout
+exec > >(tee -a "$LOG") 2>&1
+echo "# $(date)  === DocSpace FFmpeg-free installer started ==="
+
+set -x                     # включаем трассировку команд
+
+### 1. Создаём временный репо-файл (сразу disabled) ####################
+cat >/etc/yum.repos.d/temp-ffmpeg.repo <<'EOF'
+[alma-appstream]
+name=AlmaLinux 9 AppStream
+baseurl=https://repo.almalinux.org/almalinux/9/AppStream/$basearch/os/
+enabled=0
+gpgcheck=0
+
+[alma-crb]
+name=AlmaLinux 9 CRB
+baseurl=https://repo.almalinux.org/almalinux/9/CRB/$basearch/os/
+enabled=0
+gpgcheck=0
+
+[epel-9]
 name=EPEL 9 Everything
 baseurl=https://dl.fedoraproject.org/pub/epel/9/Everything/$basearch/
 enabled=0
 gpgcheck=0
 EOF
+echo "# Репозитории описаны → пока выключены (enabled=0)"
 
-# 2) Добавляем AlmaLinux CRB (нужен для редких dev-зависимостей типа libplacebo)
-sudo tee /etc/yum.repos.d/alma-crb.repo <<'EOF'
-[alma-crb]
-name=AlmaLinux 9 - CRB
-baseurl=https://repo.almalinux.org/almalinux/9/CRB/$basearch/os/
-enabled=0
-gpgcheck=0
-EOF
+### 2. Устанавливаем ffmpeg-free + все его зависимости #################
+dnf install -y \
+    --enablerepo=alma-appstream,alma-crb,epel-9 \
+    ffmpeg-free
 
-# 3) Ставим ffmpeg-free и всё, что он попросит.
-#    Alma AppStream уже подключали выше для SDL2 — включаем и его.
-sudo dnf install -y \
-     --enablerepo=epel-temp,alma-appstream,alma-crb \
-     ffmpeg-free
+### 3. Выключаем репозитории обратно ##################################
+dnf config-manager --set-disabled alma-appstream alma-crb epel-9
 
-# 4) Отключаем временные репы, чтобы они не участвовали в дальнейших апдейтах
-sudo dnf config-manager --set-disabled epel-temp alma-crb
+### 4. (Необязательно) Подменяем бинарь на статический Дж. ван Сикла ###
+# Раскомментируйте, если нужен полный набор кодеков (GPL + nonfree).
+# ARCH=$(uname -m)
+# [[ $ARCH == "x86_64" ]] && SUFFIX="amd64" || SUFFIX="arm64"
+# curl -L "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-${SUFFIX}-static.tar.xz" \
+#   | tar -xJ --strip-components=1 -C /usr/local/bin ffmpeg-*/{ffmpeg,ffprobe}
 
-#######################################
-#  FFMPEG via EPEL FINISH
-#######################################
+set +x                     # выключаем трассировку
+echo "# $(date)  === FFmpeg-free install finished OK ==="
+
 
 
 # #######################################
