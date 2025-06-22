@@ -62,81 +62,118 @@ if [ ${INSTALL_FLUENT_BIT} == "true" ]; then
 fi
 
 #######################################
-#  FFMPEG START
+#  FFMPEG START (Corrected Method for AL2023)
 #######################################
 
-ARCH=$(uname -m)
-case "$ARCH" in
-  x86_64)  FFMPEG_URL="https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz" ;;
-  aarch64) FFMPEG_URL="https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-arm64-static.tar.xz" ;;
-  *) echo "Unsupported arch: $ARCH"; exit 1 ;;
-esac
-
-tmpdir=$(mktemp -d)
-for i in {1..3}; do
-  curl -L --connect-timeout 15 --max-time 60 -o "$tmpdir/ffmpeg.tar.xz" "$FFMPEG_URL" && [ -s "$tmpdir/ffmpeg.tar.xz" ] && break
-  echo "Download attempt $i failed. Retrying in 5s..."
-  sleep 5
-done
-
-if [ ! -s "$tmpdir/ffmpeg.tar.xz" ]; then
-  echo "Failed to download FFmpeg static archive after multiple attempts. Aborting."
-  rm -rf "$tmpdir"
-  exit 1
-fi
-
-tar -xJf "$tmpdir/ffmpeg.tar.xz" -C "$tmpdir"
-ffmpeg_dir=$(find "$tmpdir" -type d -name 'ffmpeg-*' | head -1)
-
-if [ -x "$ffmpeg_dir/ffmpeg" ] && [ -x "$ffmpeg_dir/ffprobe" ]; then
-  install -m755 "$ffmpeg_dir/ffmpeg" "$ffmpeg_dir/ffprobe" /usr/local/bin/
-else
-  echo "ffmpeg or ffprobe binary not found in archive. Aborting."
-  rm -rf "$tmpdir"
-  exit 1
-fi
-
-rm -rf "$tmpdir"
-
-dnf install -y rpm-build rpmdevtools
-rpmdev-setuptree
-
-cp /usr/local/bin/ffmpeg  ~/rpmbuild/SOURCES/
-cp /usr/local/bin/ffprobe ~/rpmbuild/SOURCES/
-
-  cat > ~/rpmbuild/SPECS/ffmpeg-free.spec <<'EOF'
-Name:           ffmpeg-free
-Version:        7.0.2
-Release:        1%{?dist}
-Summary:        Static FFmpeg binary provider (for DocSpace)
-License:        GPLv3+
-Provides:       ffmpeg-free
-
-%description
-Dummy package that satisfies DocSpace dependency on ffmpeg-free.
-
-%prep
-%build
-%install
-mkdir -p %{buildroot}/usr/local/bin
-install -m755 %{_sourcedir}/ffmpeg  %{buildroot}/usr/local/bin/
-install -m755 %{_sourcedir}/ffprobe %{buildroot}/usr/local/bin/
-
-%files
-/usr/local/bin/ffmpeg
-/usr/local/bin/ffprobe
-
-%changelog
-* Fri Jun 20 2025 You <you@example.com> 7.0.2-1
-- Initial dummy provider
+# Create the RPM Fusion 'free' repository configuration file manually
+# This bypasses the dependency check on 'epel-release' or 'redhat-release'
+# which fails on Amazon Linux 2023. We explicitly use the EL9 repository path.
+echo "Creating RPM Fusion repository file..."
+sudo tee /etc/yum.repos.d/rpmfusion-free.repo <<'EOF'
+[rpmfusion-free]
+name=RPM Fusion for EL 9 - Free
+baseurl=https://mirrors.rpmfusion.org/free/el/updates/9/x86_64/
+#metalink=https://mirrors.rpmfusion.org/metalink?repo=free-el-9&arch=$basearch
+enabled=1
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-rpmfusion-free-el-9
 EOF
 
-rpmbuild -bb ~/rpmbuild/SPECS/ffmpeg-free.spec
-dnf install -y ~/rpmbuild/RPMS/${ARCH}/ffmpeg-free-*.rpm
+# Import the GPG key for the repository
+echo "Importing RPM Fusion GPG key..."
+sudo rpm --import https://rpmfusion.org/keys?action=AttachFile&do=get&target=RPM-GPG-KEY-rpmfusion-free-el-9
+
+# Install ffmpeg-free using the now available repository
+echo "Installing ffmpeg-free..."
+sudo dnf install -y ffmpeg-free
+
+# Disable the repository to keep the system clean and avoid potential conflicts
+echo "Disabling RPM Fusion repository..."
+sudo dnf config-manager --set-disabled rpmfusion-free
+
+echo "FFmpeg installed successfully via RPM Fusion."
 
 #######################################
-#  FFMPEG FINISH
+#  FFMPEG FINISH
 #######################################
+
+
+# #######################################
+# #  FFMPEG START
+# #######################################
+
+# ARCH=$(uname -m)
+# case "$ARCH" in
+#   x86_64)  FFMPEG_URL="https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz" ;;
+#   aarch64) FFMPEG_URL="https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-arm64-static.tar.xz" ;;
+#   *) echo "Unsupported arch: $ARCH"; exit 1 ;;
+# esac
+
+# tmpdir=$(mktemp -d)
+# for i in {1..3}; do
+#   curl -L --connect-timeout 15 --max-time 60 -o "$tmpdir/ffmpeg.tar.xz" "$FFMPEG_URL" && [ -s "$tmpdir/ffmpeg.tar.xz" ] && break
+#   echo "Download attempt $i failed. Retrying in 5s..."
+#   sleep 5
+# done
+
+# if [ ! -s "$tmpdir/ffmpeg.tar.xz" ]; then
+#   echo "Failed to download FFmpeg static archive after multiple attempts. Aborting."
+#   rm -rf "$tmpdir"
+#   exit 1
+# fi
+
+# tar -xJf "$tmpdir/ffmpeg.tar.xz" -C "$tmpdir"
+# ffmpeg_dir=$(find "$tmpdir" -type d -name 'ffmpeg-*' | head -1)
+
+# if [ -x "$ffmpeg_dir/ffmpeg" ] && [ -x "$ffmpeg_dir/ffprobe" ]; then
+#   install -m755 "$ffmpeg_dir/ffmpeg" "$ffmpeg_dir/ffprobe" /usr/local/bin/
+# else
+#   echo "ffmpeg or ffprobe binary not found in archive. Aborting."
+#   rm -rf "$tmpdir"
+#   exit 1
+# fi
+
+# rm -rf "$tmpdir"
+
+# dnf install -y rpm-build rpmdevtools
+# rpmdev-setuptree
+
+# cp /usr/local/bin/ffmpeg  ~/rpmbuild/SOURCES/
+# cp /usr/local/bin/ffprobe ~/rpmbuild/SOURCES/
+
+#   cat > ~/rpmbuild/SPECS/ffmpeg-free.spec <<'EOF'
+# Name:           ffmpeg-free
+# Version:        7.0.2
+# Release:        1%{?dist}
+# Summary:        Static FFmpeg binary provider (for DocSpace)
+# License:        GPLv3+
+# Provides:       ffmpeg-free
+
+# %description
+# Dummy package that satisfies DocSpace dependency on ffmpeg-free.
+
+# %prep
+# %build
+# %install
+# mkdir -p %{buildroot}/usr/local/bin
+# install -m755 %{_sourcedir}/ffmpeg  %{buildroot}/usr/local/bin/
+# install -m755 %{_sourcedir}/ffprobe %{buildroot}/usr/local/bin/
+
+# %files
+# /usr/local/bin/ffmpeg
+# /usr/local/bin/ffprobe
+
+# %changelog
+# * Fri Jun 20 2025 You <you@example.com> 7.0.2-1
+# - Initial dummy provider
+# EOF
+
+# rpmbuild -bb ~/rpmbuild/SPECS/ffmpeg-free.spec
+# dnf install -y ~/rpmbuild/RPMS/${ARCH}/ffmpeg-free-*.rpm
+
+# #######################################
+# #  FFMPEG FINISH
+# #######################################
 
 rpm --import https://openresty.org/package/pubkey.gpg
 curl -o /etc/yum.repos.d/openresty.repo https://openresty.org/package/"${OPENRESTY_DISTR_NAME}"/openresty.repo
