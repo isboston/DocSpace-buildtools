@@ -90,7 +90,10 @@ enabled=0
 gpgcheck=0
 EOF
 
-${package_manager} --enablerepo=alma-appstream,alma-crb,epel-9 install -y ffmpeg-free SDL2 "java-${JAVA_VERSION}-openjdk-headless"
+${package_manager} install -y --enablerepo=alma-appstream,alma-crb,epel-9 \
+            java-${JAVA_VERSION}-openjdk-headless \
+            ffmpeg-free \
+            SDL2 
 
 # Add Microsoft .NET 9 repository and install SDK
 rpm --import https://packages.microsoft.com/keys/microsoft.asc
