@@ -111,9 +111,9 @@ JAVA_PATH=$(find /usr/lib/jvm/ -name "java" -path "*java-${JAVA_VERSION}*" | hea
 alternatives --install /usr/bin/java java "$JAVA_PATH" 100 && alternatives --set java "$JAVA_PATH"
 
 #add repo, install fluent-bit
-if [ "${INSTALL_FLUENT_BIT}" == "true" ]; then 
-	curl https://raw.githubusercontent.com/fluent/fluent-bit/master/install.sh | bash || ${package_manager} -y install fluent-bit
-	${package_manager} -y install opensearch-dashboards-"${DASHBOARDS_VERSION}" --enablerepo=opensearch-dashboards-2.x
+if [ "${INSTALL_FLUENT_BIT}" == "true" ]; then
+    curl https://raw.githubusercontent.com/fluent/fluent-bit/master/install.sh | bash || ${package_manager} -y install fluent-bit
+    ${package_manager} -y install opensearch-dashboards-"${DASHBOARDS_VERSION}" --enablerepo=opensearch-dashboards-2.x
 fi
 
 if [[ $PSQLExitCode -eq $UPDATE_AVAILABLE_CODE ]]; then
