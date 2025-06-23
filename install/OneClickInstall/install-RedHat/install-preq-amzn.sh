@@ -58,7 +58,7 @@ sed -i "s/\$releasever/2023/g" /etc/yum.repos.d/openresty.repo
 JAVA_VERSION=21
 ${package_manager} -y install \
 			python3 \
-			nodejs ${NODEJS_OPTION} \
+			nodejs \
 			opensearch-${ELASTIC_VERSION} \
 			mysql-community-server \
 			postgresql${PSQL_VERSION} \
