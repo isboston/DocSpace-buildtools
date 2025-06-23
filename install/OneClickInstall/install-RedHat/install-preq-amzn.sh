@@ -13,7 +13,7 @@ EOF
 # clean yum cache
 ${package_manager} clean all
 
-${package_manager} -y install yum-utils
+# ${package_manager} -y install yum-utils
 
 { yum check-update postgresql; PSQLExitCode=$?; } || true #Checking for postgresql update
 { yum check-update "$DIST"*-release; exitCode=$?; } || true #Checking for distribution update
@@ -24,13 +24,8 @@ fi
 
 #add rabbitmq & erlang repo
 curl -s https://packagecloud.io/install/repositories/rabbitmq/rabbitmq-server/script.rpm.sh | os=el dist=9 bash
-if [[ "$(uname -m)" =~ (arm|aarch) ]]; then
-    ERLANG_LATEST_URL=$(curl -s https://api.github.com/repos/rabbitmq/erlang-rpm/releases | \
-        jq -r '.[] | .assets[]? | select(.name | test("erlang-[0-9\\.]+-1\\.el" + 9 + "\\.aarch64\\.rpm$")) | .browser_download_url' | head -n1)
-    yum install -y "${ERLANG_LATEST_URL}"
-else
-    curl -s https://packagecloud.io/install/repositories/rabbitmq/erlang/script.rpm.sh | os=el dist=9 bash
-fi
+curl -s https://packagecloud.io/install/repositories/rabbitmq/erlang/script.rpm.sh | os=el dist=9 bash
+
 
 PSQL_INSTALLED_VERSION=$(rpm -qa | grep -Eo '^postgresql[0-9]+' | sed 's/^postgresql//' | sort -nr | head -1)
 PSQL_AVAILABLE_VERSION=$(yum list postgresql\*-server --available | awk '/^postgresql[0-9]+-server/ {gsub("postgresql|-server.*","",$1); print $1}' | sort -nr | head -1)
@@ -61,21 +56,27 @@ if [ ${INSTALL_FLUENT_BIT} == "true" ]; then
 	DASHBOARDS_VERSION="2.18.0"
 fi
 
-#!/usr/bin/env bash
-########################################################################
-#  FFmpeg-free install for Amazon Linux 2023
-#  – без сборки, с подробным логом
-########################################################################
+rpm --import https://openresty.org/package/pubkey.gpg
+curl -o /etc/yum.repos.d/openresty.repo https://openresty.org/package/"${OPENRESTY_DISTR_NAME}"/openresty.repo
+sed -i "s/\$releasever/2023/g" /etc/yum.repos.d/openresty.repo
 
-LOG=/var/log/docspace_ffmpeg_setup.log
+JAVA_VERSION=21
+${package_manager} -y install \
+			python3 \
+			nodejs ${NODEJS_OPTION} \
+			opensearch-${ELASTIC_VERSION} \
+			mysql-community-server \
+			postgresql${PSQL_VERSION} \
+			postgresql${PSQL_VERSION}-server \
+			rabbitmq-server$rabbitmq_version \
+			valkey \
+			expect
 
-# дублируем всё и в файл, и на stdout
-exec > >(tee -a "$LOG") 2>&1
-echo "# $(date)  === DocSpace FFmpeg-free installer started ==="
 
 
-### 1. Создаём временный репо-файл (сразу disabled) ####################
-cat >/etc/yum.repos.d/temp-ffmpeg.repo <<'EOF'
+
+# ---------- AlmaLinux & EPEL repos  ----------
+cat >/etc/yum.repos.d/alma-temporary.repo <<'EOF'
 [alma-appstream]
 name=AlmaLinux 9 AppStream
 baseurl=https://repo.almalinux.org/almalinux/9/AppStream/$basearch/os/
@@ -94,140 +95,54 @@ baseurl=https://dl.fedoraproject.org/pub/epel/9/Everything/$basearch/
 enabled=0
 gpgcheck=0
 EOF
-echo "# Репозитории описаны → пока выключены (enabled=0)"
 
-### 2. Устанавливаем ffmpeg-free + все его зависимости #################
-dnf install -y \
-    --enablerepo=alma-appstream,alma-crb,epel-9 \
-    ffmpeg-free
+# ---------- Установка пакетов из временных репозиториев ----------
 
-### 3. Выключаем репозитории обратно ##################################
+dnf install -y --enablerepo=alma-appstream,alma-crb,epel-9 \
+    ffmpeg-free SDL2 java-${JAVA_VERSION}-openjdk-headless
+
+# ---------- После установки снова отключаем репозитории ----------
 dnf config-manager --set-disabled alma-appstream alma-crb epel-9
 
-### 4. (Необязательно) Подменяем бинарь на статический Дж. ван Сикла ###
-# Раскомментируйте, если нужен полный набор кодеков (GPL + nonfree).
-# ARCH=$(uname -m)
-# [[ $ARCH == "x86_64" ]] && SUFFIX="amd64" || SUFFIX="arm64"
-# curl -L "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-${SUFFIX}-static.tar.xz" \
-#   | tar -xJ --strip-components=1 -C /usr/local/bin ffmpeg-*/{ffmpeg,ffprobe}
-
-echo "# $(date)  === FFmpeg-free install finished OK ==="
 
 
+# # ffmpeg-free install for Amazon Linux 2023
+# cat >/etc/yum.repos.d/temp-ffmpeg.repo <<'EOF'
+# [alma-appstream]
+# name=AlmaLinux 9 AppStream
+# baseurl=https://repo.almalinux.org/almalinux/9/AppStream/$basearch/os/
+# enabled=0
+# gpgcheck=0
 
-# #######################################
-# #  FFMPEG START
-# #######################################
+# [alma-crb]
+# name=AlmaLinux 9 CRB
+# baseurl=https://repo.almalinux.org/almalinux/9/CRB/$basearch/os/
+# enabled=0
+# gpgcheck=0
 
-# ARCH=$(uname -m)
-# case "$ARCH" in
-#   x86_64)  FFMPEG_URL="https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz" ;;
-#   aarch64) FFMPEG_URL="https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-arm64-static.tar.xz" ;;
-#   *) echo "Unsupported arch: $ARCH"; exit 1 ;;
-# esac
-
-# tmpdir=$(mktemp -d)
-# for i in {1..3}; do
-#   curl -L --connect-timeout 15 --max-time 60 -o "$tmpdir/ffmpeg.tar.xz" "$FFMPEG_URL" && [ -s "$tmpdir/ffmpeg.tar.xz" ] && break
-#   echo "Download attempt $i failed. Retrying in 5s..."
-#   sleep 5
-# done
-
-# if [ ! -s "$tmpdir/ffmpeg.tar.xz" ]; then
-#   echo "Failed to download FFmpeg static archive after multiple attempts. Aborting."
-#   rm -rf "$tmpdir"
-#   exit 1
-# fi
-
-# tar -xJf "$tmpdir/ffmpeg.tar.xz" -C "$tmpdir"
-# ffmpeg_dir=$(find "$tmpdir" -type d -name 'ffmpeg-*' | head -1)
-
-# if [ -x "$ffmpeg_dir/ffmpeg" ] && [ -x "$ffmpeg_dir/ffprobe" ]; then
-#   install -m755 "$ffmpeg_dir/ffmpeg" "$ffmpeg_dir/ffprobe" /usr/local/bin/
-# else
-#   echo "ffmpeg or ffprobe binary not found in archive. Aborting."
-#   rm -rf "$tmpdir"
-#   exit 1
-# fi
-
-# rm -rf "$tmpdir"
-
-# dnf install -y rpm-build rpmdevtools
-# rpmdev-setuptree
-
-# cp /usr/local/bin/ffmpeg  ~/rpmbuild/SOURCES/
-# cp /usr/local/bin/ffprobe ~/rpmbuild/SOURCES/
-
-#   cat > ~/rpmbuild/SPECS/ffmpeg-free.spec <<'EOF'
-# Name:           ffmpeg-free
-# Version:        7.0.2
-# Release:        1%{?dist}
-# Summary:        Static FFmpeg binary provider (for DocSpace)
-# License:        GPLv3+
-# Provides:       ffmpeg-free
-
-# %description
-# Dummy package that satisfies DocSpace dependency on ffmpeg-free.
-
-# %prep
-# %build
-# %install
-# mkdir -p %{buildroot}/usr/local/bin
-# install -m755 %{_sourcedir}/ffmpeg  %{buildroot}/usr/local/bin/
-# install -m755 %{_sourcedir}/ffprobe %{buildroot}/usr/local/bin/
-
-# %files
-# /usr/local/bin/ffmpeg
-# /usr/local/bin/ffprobe
-
-# %changelog
-# * Fri Jun 20 2025 You <you@example.com> 7.0.2-1
-# - Initial dummy provider
+# [epel-9]
+# name=EPEL 9 Everything
+# baseurl=https://dl.fedoraproject.org/pub/epel/9/Everything/$basearch/
+# enabled=0
+# gpgcheck=0
 # EOF
 
-# rpmbuild -bb ~/rpmbuild/SPECS/ffmpeg-free.spec
-# dnf install -y ~/rpmbuild/RPMS/${ARCH}/ffmpeg-free-*.rpm
+# dnf install -y --enablerepo=alma-appstream,alma-crb,epel-9 ffmpeg-free
+# dnf config-manager --set-disabled alma-appstream alma-crb epel-9
 
-# #######################################
-# #  FFMPEG FINISH
-# #######################################
+# # SDL2 and Java
+# sudo tee /etc/yum.repos.d/alma-appstream.repo <<'EOF'
+# [alma-appstream]
+# name = AlmaLinux 9 - AppStream (SDL2, OpenJDK 21)
+# baseurl = https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/
+# enabled = 1
+# gpgcheck = 0
+# EOF
 
-rpm --import https://openresty.org/package/pubkey.gpg
-curl -o /etc/yum.repos.d/openresty.repo https://openresty.org/package/"${OPENRESTY_DISTR_NAME}"/openresty.repo
-sed -i "s/\$releasever/2023/g" /etc/yum.repos.d/openresty.repo
+# sudo dnf install -y SDL2 java-${JAVA_VERSION}-openjdk-headless
+# sudo dnf config-manager --set-disabled alma-appstream
 
-JAVA_VERSION=21
-${package_manager} -y install \
-			python3 \
-			nodejs ${NODEJS_OPTION} \
-			opensearch-${ELASTIC_VERSION} \
-			mysql-community-server \
-			postgresql${PSQL_VERSION} \
-			postgresql${PSQL_VERSION}-server \
-			rabbitmq-server$rabbitmq_version \
-			valkey \
-			expect \
-
-#######################################
-#  SDL and JAVA START
-#######################################
-sudo tee /etc/yum.repos.d/alma-appstream.repo <<'EOF'
-[alma-appstream]
-name = AlmaLinux 9 - AppStream (SDL2, OpenJDK 21)
-baseurl = https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/
-enabled = 1
-gpgcheck = 0
-EOF
-
-sudo dnf install -y SDL2 java-${JAVA_VERSION}-openjdk-headless
-sudo dnf config-manager --set-disabled alma-appstream
-#######################################
-#  SDL and JAVA FINISH
-#######################################
-
-#######################################
-#  DOTNET START
-#######################################
+# dotnet
 sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
 
 sudo tee /etc/yum.repos.d/microsoft-dotnet9.repo <<'EOF'
@@ -241,9 +156,6 @@ EOF
 
 sudo dnf clean all && sudo dnf makecache
 sudo dnf install -y dotnet-sdk-9.0 --allowerasing
-#######################################
-#  DOTNET FINISH
-#######################################
 
 # Set Java ${JAVA_VERSION} as the default version
 JAVA_PATH=$(find /usr/lib/jvm/ -name "java" -path "*java-${JAVA_VERSION}*" | head -1)
