@@ -137,6 +137,12 @@ if [ "$MAKESWAP" == "true" ]; then
 	make_swap
 fi
 
+echo "----- RabbitMQ status -----"
+systemctl status rabbitmq-server --no-pager
+echo "----- RabbitMQ logs (last 50 lines) -----"
+journalctl -u rabbitmq-server -n 50 --no-pager
+
+
 { ${package_manager} check-update ${product}; PRODUCT_CHECK_UPDATE=$?; } || true
 if [ "$PRODUCT_INSTALLED" = "false" ]; then
 	${package_manager} install -y ${product} --best --allowerasing $TESTING_REPO
