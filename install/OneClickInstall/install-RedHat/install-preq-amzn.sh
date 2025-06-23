@@ -30,7 +30,7 @@ PSQL_VERSION=${PSQL_INSTALLED_VERSION:-$PSQL_AVAILABLE_VERSION}
 
 # Add Node.js repository
 NODE_VERSION="18"
-curl -fsSL https://rpm.nodesource.com/setup_${NODE_VERSION}.x | sed '/update -y/d' | bash - || true
+curl -fsSL https://rpm.nodesource.com/setup_${NODE_VERSION}.x | bash - || true
 
 # Add MySQL repository
 ${package_manager} remove -y @mysql && ${package_manager} module -y reset mysql && ${package_manager} module -y disable mysql
@@ -65,7 +65,7 @@ ${package_manager} -y install \
 			mysql-community-server \
 			postgresql${PSQL_VERSION} \
 			postgresql${PSQL_VERSION}-server \
-			rabbitmq-server$rabbitmq_version \
+			rabbitmq-server \
 			valkey \
 			expect
 
@@ -90,8 +90,7 @@ enabled=0
 gpgcheck=0
 EOF
 
-${package_manager} install -y --enablerepo=alma-appstream,alma-crb,epel-9 ffmpeg-free SDL2 java-${JAVA_VERSION}-openjdk-headless
-${package_manager} config-manager --set-disabled alma-appstream alma-crb epel-9
+${package_manager} --enablerepo=alma-appstream,alma-crb,epel-9 install -y ffmpeg-free SDL2 "java-${JAVA_VERSION}-openjdk-headless"
 
 # Add Microsoft .NET 9 repository and install SDK
 rpm --import https://packages.microsoft.com/keys/microsoft.asc
