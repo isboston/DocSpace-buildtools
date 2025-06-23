@@ -23,7 +23,6 @@ fi
 curl -s https://packagecloud.io/install/repositories/rabbitmq/rabbitmq-server/script.rpm.sh | os=el dist=9 bash
 curl -s https://packagecloud.io/install/repositories/rabbitmq/erlang/script.rpm.sh | os=el dist=9 bash
 
-
 PSQL_INSTALLED_VERSION=$(rpm -qa | grep -Eo '^postgresql[0-9]+' | sed 's/^postgresql//' | sort -nr | head -1)
 PSQL_AVAILABLE_VERSION=$(yum list postgresql\*-server --available | awk '/^postgresql[0-9]+-server/ {gsub("postgresql|-server.*","",$1); print $1}' | sort -nr | head -1)
 PSQL_VERSION=${PSQL_INSTALLED_VERSION:-$PSQL_AVAILABLE_VERSION}
@@ -48,7 +47,7 @@ ELASTIC_VERSION="2.18.0"
 export OPENSEARCH_INITIAL_ADMIN_PASSWORD="$(echo "${package_sysname}!A1")"
 
 #add opensearch dashboards repo
-if [ ${INSTALL_FLUENT_BIT} == "true" ]; then
+if [ "${INSTALL_FLUENT_BIT}" == "true" ]; then
 	curl -SL https://artifacts.opensearch.org/releases/bundle/opensearch-dashboards/2.x/opensearch-dashboards-2.x.repo -o /etc/yum.repos.d/opensearch-dashboards-2.x.repo
 	DASHBOARDS_VERSION="2.18.0"
 fi
@@ -135,4 +134,4 @@ fi
 semanage permissive -a httpd_t
 
 package_services="rabbitmq-server postgresql valkey mysqld"
-# rpm -q valkey &>/dev/null && package_services="${package_services//redis/valkey}" || true # https://fedoraproject.org/wiki/Changes/Replace_Redis_With_Valkey 
+
