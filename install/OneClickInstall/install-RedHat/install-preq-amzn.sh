@@ -13,8 +13,6 @@ EOF
 # clean yum cache
 ${package_manager} clean all
 
-# ${package_manager} -y install yum-utils
-
 { yum check-update postgresql; PSQLExitCode=$?; } || true #Checking for postgresql update
 { yum check-update "$DIST"*-release; exitCode=$?; } || true #Checking for distribution update
 
@@ -72,10 +70,7 @@ ${package_manager} -y install \
 			valkey \
 			expect
 
-
-
-
-# ---------- AlmaLinux & EPEL repos  ----------
+# add ffmpeg-free SDL2 java
 cat >/etc/yum.repos.d/alma-temporary.repo <<'EOF'
 [alma-appstream]
 name=AlmaLinux 9 AppStream
@@ -96,51 +91,8 @@ enabled=0
 gpgcheck=0
 EOF
 
-# ---------- Установка пакетов из временных репозиториев ----------
-
-dnf install -y --enablerepo=alma-appstream,alma-crb,epel-9 \
-    ffmpeg-free SDL2 java-${JAVA_VERSION}-openjdk-headless
-
-# ---------- После установки снова отключаем репозитории ----------
+dnf install -y --enablerepo=alma-appstream,alma-crb,epel-9 ffmpeg-free SDL2 java-${JAVA_VERSION}-openjdk-headless
 dnf config-manager --set-disabled alma-appstream alma-crb epel-9
-
-
-
-# # ffmpeg-free install for Amazon Linux 2023
-# cat >/etc/yum.repos.d/temp-ffmpeg.repo <<'EOF'
-# [alma-appstream]
-# name=AlmaLinux 9 AppStream
-# baseurl=https://repo.almalinux.org/almalinux/9/AppStream/$basearch/os/
-# enabled=0
-# gpgcheck=0
-
-# [alma-crb]
-# name=AlmaLinux 9 CRB
-# baseurl=https://repo.almalinux.org/almalinux/9/CRB/$basearch/os/
-# enabled=0
-# gpgcheck=0
-
-# [epel-9]
-# name=EPEL 9 Everything
-# baseurl=https://dl.fedoraproject.org/pub/epel/9/Everything/$basearch/
-# enabled=0
-# gpgcheck=0
-# EOF
-
-# dnf install -y --enablerepo=alma-appstream,alma-crb,epel-9 ffmpeg-free
-# dnf config-manager --set-disabled alma-appstream alma-crb epel-9
-
-# # SDL2 and Java
-# sudo tee /etc/yum.repos.d/alma-appstream.repo <<'EOF'
-# [alma-appstream]
-# name = AlmaLinux 9 - AppStream (SDL2, OpenJDK 21)
-# baseurl = https://repo.almalinux.org/almalinux/9/AppStream/x86_64/os/
-# enabled = 1
-# gpgcheck = 0
-# EOF
-
-# sudo dnf install -y SDL2 java-${JAVA_VERSION}-openjdk-headless
-# sudo dnf config-manager --set-disabled alma-appstream
 
 # dotnet
 sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
