@@ -6,16 +6,42 @@ on:
 
   workflow_dispatch:
     inputs:
-      os_list:
-        description: "Comma-separated list of OS to test (e.g. debian11,ubuntu2404,rhel9)"
-        required: false
-        default: "rhel9,centos9s,debian11,debian12,ubuntu2204,ubuntu2404,fedora41,fedora42,amazon2023"
-
+      rhel9:
+        type: boolean
+        description: 'RHEL 9'
+        default: true
+      centos9s:
+         type: boolean
+         description: 'CentOS 9 Stream'
+         default: true
+      debian12:
+         type: boolean
+         description: 'Debian 12'
+         default: true
+      ubuntu2204:
+         type: boolean
+         description: 'Ubuntu 22.04'
+         default: true
+      ubuntu2404:
+          type: boolean
+          description: 'Ubuntu 24.04'
+          default: true
+      fedora41:
+         type: boolean
+         description: 'Fedora 41'
+         default: true
+      fedora42:
+        type: boolean
+        description: 'Fedora 42'
+        default: true
+      amazon2023:
+        type: boolean
+        description: 'Amazon Linux 2023'
+        default: true
       deb_build:
         type: boolean
         description: "Run tests on DEB-based distros"
         default: true
-
       rpm_build:
         type: boolean
         description: "Run tests on RPM-based distros"
@@ -27,41 +53,30 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-    - name: Set matrix names
-      id: set-matrix
-      run: |
-        os_input="${{ github.event.inputs.os_list }}"
-        IFS=',' read -ra selected <<< "$os_input"
+      - name: Set matrix names
+        id: set-matrix
+        run: |
+          matrix=$(echo '{
+            "include": [
+              {"execute": '${{ github.event.inputs.rhel9 || true }}', "name": "RHEL 9", "os": "rhel9", "distr": "generic"},
+              {"execute": '${{ github.event.inputs.centos9s || true }}', "name": "CentOS9s", "os": "base-centos9s", "distr": "onlyoffice"},
+              {"execute": '${{ true }}', "name": "Debian11", "os": "base-debian11", "distr": "onlyoffice"},
+              {"execute": '${{ github.event.inputs.debian12 || true }}', "name": "Debian12", "os": "base-debian12", "distr": "onlyoffice"},
+              {"execute": '${{ github.event.inputs.ubuntu2204 || true }}', "name": "Ubuntu22.04", "os": "base-ubuntu2204", "distr": "onlyoffice"},
+              {"execute": '${{ github.event.inputs.ubuntu2404 || true }}', "name": "Ubuntu24.04", "os": "base-ubuntu2404", "distr": "onlyoffice"},
+              {"execute": '${{ github.event.inputs.fedora41 || true }}', "name": "Fedora41", "os": "base-fedora41", "distr": "onlyoffice"},
+              {"execute": '${{ github.event.inputs.fedora42 || true }}', "name": "Fedora42", "os": "base-fedora42", "distr": "onlyoffice"},
+              {"execute": '${{ github.event.inputs.amazon2023 || true }}', "name": "Amazon Linux 2023", "os": "amazonlinux-2023", "distr": "bento"}
+            ]
+          }')            
 
-        matrix_data='[
-          {"name": "RHEL 9", "os": "rhel9", "distr": "generic"},
-          {"name": "CentOS9s", "os": "base-centos9s", "distr": "onlyoffice"},
-          {"name": "Debian11", "os": "base-debian11", "distr": "onlyoffice"},
-          {"name": "Debian12", "os": "base-debian12", "distr": "onlyoffice"},
-          {"name": "Ubuntu22.04", "os": "base-ubuntu2204", "distr": "onlyoffice"},
-          {"name": "Ubuntu24.04", "os": "base-ubuntu2404", "distr": "onlyoffice"},
-          {"name": "Fedora41", "os": "base-fedora41", "distr": "onlyoffice"},
-          {"name": "Fedora42", "os": "base-fedora42", "distr": "onlyoffice"},
-          {"name": "Amazon Linux 2023", "os": "amazonlinux-2023", "distr": "bento"}
-        ]'
+          matrix=$(jq -c --argjson debuild "${{ github.event.inputs.deb_build||true }}" --argjson rpmbuild "${{ github.event.inputs.rpm_build||true }}" \
+          '{include:[.include[]|select(.execute or
+            ($debuild and(.name|test("Debian|Ubuntu"))) or
+            ($rpmbuild and(.name|test("CentOS|Fedora|RHEL|Amazon")))
+          )]}' <<< "$matrix")
 
-        selected_json=$(printf '%s\n' "${selected[@]}" | jq -R . | jq -s .)
-
-        matrix=$(jq -c \
-          --argjson selected "$selected_json" \
-          --argjson debuild "${{ github.event.inputs.deb_build || true }}" \
-          --argjson rpmbuild "${{ github.event.inputs.rpm_build || true }}" \
-          '
-          {include: [
-            .[] | select(
-              (.name | ascii_downcase | gsub(" "; "") | IN($selected[]))
-              or ($debuild and (.name | test("Debian|Ubuntu")))
-              or ($rpmbuild and (.name | test("CentOS|Fedora|RHEL|Amazon")))
-            )
-          ]}
-          ' <<< "$matrix_data")
-
-        echo "matrix=$matrix" >> $GITHUB_OUTPUT
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
 
   vagrant-up:
     name: "Test DocSpace with ${{ matrix.name}}"
