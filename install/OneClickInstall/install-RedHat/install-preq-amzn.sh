@@ -13,7 +13,6 @@ EOF
 # clean yum cache
 ${package_manager} clean all
 
-{ yum check-update postgresql; PSQLExitCode=$?; } || true #Checking for postgresql update
 { yum check-update "$DIST"*-release; exitCode=$?; } || true #Checking for distribution update
 
 if rpm -qa | grep 'mariadb.*config' >/dev/null 2>&1; then
@@ -71,7 +70,7 @@ ${package_manager} -y install \
 			expect
 
 # add ffmpeg-free SDL2 java
-cat >/etc/yum.repos.d/alma-temporary.repo <<'EOF'
+tee /etc/yum.repos.d/alma-temporary.repo <<'EOF'
 [alma-appstream]
 name=AlmaLinux 9 AppStream
 baseurl=https://repo.almalinux.org/almalinux/9/AppStream/$basearch/os/
@@ -95,9 +94,9 @@ dnf install -y --enablerepo=alma-appstream,alma-crb,epel-9 ffmpeg-free SDL2 java
 dnf config-manager --set-disabled alma-appstream alma-crb epel-9
 
 # dotnet
-sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
+rpm --import https://packages.microsoft.com/keys/microsoft.asc
 
-sudo tee /etc/yum.repos.d/microsoft-dotnet9.repo <<'EOF'
+tee /etc/yum.repos.d/microsoft-dotnet9.repo <<'EOF'
 [microsoft-dotnet9]
 name=Microsoft .NET 9 (RHEL9)
 baseurl=https://packages.microsoft.com/yumrepos/microsoft-rhel9.0-prod
@@ -106,8 +105,8 @@ gpgcheck=1
 gpgkey=https://packages.microsoft.com/keys/microsoft.asc
 EOF
 
-sudo dnf clean all && sudo dnf makecache
-sudo dnf install -y dotnet-sdk-9.0 --allowerasing
+dnf clean all && dnf makecache
+dnf install -y dotnet-sdk-9.0 --allowerasing
 
 # Set Java ${JAVA_VERSION} as the default version
 JAVA_PATH=$(find /usr/lib/jvm/ -name "java" -path "*java-${JAVA_VERSION}*" | head -1)
@@ -136,4 +135,4 @@ fi
 semanage permissive -a httpd_t
 
 package_services="rabbitmq-server postgresql valkey mysqld"
-rpm -q valkey &>/dev/null && package_services="${package_services//redis/valkey}" || true # https://fedoraproject.org/wiki/Changes/Replace_Redis_With_Valkey 
+# rpm -q valkey &>/dev/null && package_services="${package_services//redis/valkey}" || true # https://fedoraproject.org/wiki/Changes/Replace_Redis_With_Valkey 
