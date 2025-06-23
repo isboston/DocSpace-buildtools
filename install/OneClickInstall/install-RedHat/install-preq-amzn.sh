@@ -10,10 +10,9 @@ cat<<EOF
 
 EOF
 
-# clean yum cache
 ${package_manager} clean all
 
-{ yum check-update "$DIST"*-release; exitCode=$?; } || true #Checking for distribution update
+{ ${package_manager} check-update "$DIST"*-release; exitCode=$?; } || true #Checking for distribution update
 
 if rpm -qa | grep 'mariadb.*config' >/dev/null 2>&1; then
    echo "$RES_MARIADB" && exit 0
@@ -24,21 +23,21 @@ curl -s https://packagecloud.io/install/repositories/rabbitmq/rabbitmq-server/sc
 curl -s https://packagecloud.io/install/repositories/rabbitmq/erlang/script.rpm.sh | os=el dist=9 bash
 
 PSQL_INSTALLED_VERSION=$(rpm -qa | grep -Eo '^postgresql[0-9]+' | sed 's/^postgresql//' | sort -nr | head -1)
-PSQL_AVAILABLE_VERSION=$(yum list postgresql\*-server --available | awk '/^postgresql[0-9]+-server/ {gsub("postgresql|-server.*","",$1); print $1}' | sort -nr | head -1)
+PSQL_AVAILABLE_VERSION=$(${package_manager} list postgresql\*-server --available | awk '/^postgresql[0-9]+-server/ {gsub("postgresql|-server.*","",$1); print $1}' | sort -nr | head -1)
 PSQL_VERSION=${PSQL_INSTALLED_VERSION:-$PSQL_AVAILABLE_VERSION}
-{ yum check-update postgresql"${PSQL_VERSION}"; PSQLExitCode=$?; } || true
+{ ${package_manager} check-update postgresql"${PSQL_VERSION}"; PSQLExitCode=$?; } || true
 
 #add nodejs repo
 NODE_VERSION="18"
 curl -fsSL https://rpm.nodesource.com/setup_${NODE_VERSION}.x | sed '/update -y/d' | bash - || true
 
 #add mysql repo
-dnf remove -y @mysql && dnf module -y reset mysql && dnf module -y disable mysql
+${package_manager} remove -y @mysql && ${package_manager} module -y reset mysql && ${package_manager} module -y disable mysql
 MYSQL_REPO_VERSION="$(curl https://repo.mysql.com | grep -oP "mysql84-community-release-${MYSQL_DISTR_NAME}${REV}-\K.*" | grep -o '^[^.]*' | sort | tail -n1)"
-yum install -y https://repo.mysql.com/mysql84-community-release-"${MYSQL_DISTR_NAME}""${REV}"-"${MYSQL_REPO_VERSION}".noarch.rpm || true
+${package_manager} install -y https://repo.mysql.com/mysql84-community-release-"${MYSQL_DISTR_NAME}""${REV}"-"${MYSQL_REPO_VERSION}".noarch.rpm || true
 
 if ! rpm -q mysql-community-server; then
-	MYSQL_FIRST_TIME_INSTALL="true"
+    MYSQL_FIRST_TIME_INSTALL="true"
 fi
 
 #add opensearch repo
@@ -48,8 +47,8 @@ export OPENSEARCH_INITIAL_ADMIN_PASSWORD="$(echo "${package_sysname}!A1")"
 
 #add opensearch dashboards repo
 if [ "${INSTALL_FLUENT_BIT}" == "true" ]; then
-	curl -SL https://artifacts.opensearch.org/releases/bundle/opensearch-dashboards/2.x/opensearch-dashboards-2.x.repo -o /etc/yum.repos.d/opensearch-dashboards-2.x.repo
-	DASHBOARDS_VERSION="2.18.0"
+    curl -SL https://artifacts.opensearch.org/releases/bundle/opensearch-dashboards/2.x/opensearch-dashboards-2.x.repo -o /etc/yum.repos.d/opensearch-dashboards-2.x.repo
+    DASHBOARDS_VERSION="2.18.0"
 fi
 
 rpm --import https://openresty.org/package/pubkey.gpg
@@ -89,8 +88,8 @@ enabled=0
 gpgcheck=0
 EOF
 
-dnf install -y --enablerepo=alma-appstream,alma-crb,epel-9 ffmpeg-free SDL2 java-${JAVA_VERSION}-openjdk-headless
-dnf config-manager --set-disabled alma-appstream alma-crb epel-9
+${package_manager} install -y --enablerepo=alma-appstream,alma-crb,epel-9 ffmpeg-free SDL2 java-${JAVA_VERSION}-openjdk-headless
+${package_manager} config-manager --set-disabled alma-appstream alma-crb epel-9
 
 # dotnet
 rpm --import https://packages.microsoft.com/keys/microsoft.asc
@@ -104,8 +103,8 @@ gpgcheck=1
 gpgkey=https://packages.microsoft.com/keys/microsoft.asc
 EOF
 
-dnf clean all && dnf makecache
-dnf install -y dotnet-sdk-9.0 --allowerasing
+${package_manager} clean all && ${package_manager} makecache
+${package_manager} install -y dotnet-sdk-9.0 --allowerasing
 
 # Set Java ${JAVA_VERSION} as the default version
 JAVA_PATH=$(find /usr/lib/jvm/ -name "java" -path "*java-${JAVA_VERSION}*" | head -1)
@@ -113,13 +112,13 @@ alternatives --install /usr/bin/java java "$JAVA_PATH" 100 && alternatives --set
 
 #add repo, install fluent-bit
 if [ "${INSTALL_FLUENT_BIT}" == "true" ]; then 
-	curl https://raw.githubusercontent.com/fluent/fluent-bit/master/install.sh | bash || yum -y install fluent-bit
+	curl https://raw.githubusercontent.com/fluent/fluent-bit/master/install.sh | bash || ${package_manager} -y install fluent-bit
 	${package_manager} -y install opensearch-dashboards-"${DASHBOARDS_VERSION}" --enablerepo=opensearch-dashboards-2.x
 fi
 
 if [[ $PSQLExitCode -eq $UPDATE_AVAILABLE_CODE ]]; then
-	yum -y install postgresql-upgrade
-	postgresql-setup --upgrade || true
+    ${package_manager} -y install postgresql-upgrade
+    postgresql-setup --upgrade || true
 fi
 
 postgresql-setup --initdb || true
@@ -128,8 +127,8 @@ sed -E -i "s/(host\s+(all|replication)\s+all\s+(127\.0\.0\.1\/32|\:\:1\/128)\s+)
 sed -i "s/^#\?password_encryption = .*/password_encryption = 'scram-sha-256'/" /var/lib/pgsql/data/postgresql.conf
 
 if ! command -v semanage &> /dev/null; then
-	yum install -y policycoreutils-python-utils
-fi 
+    ${package_manager} install -y policycoreutils-python-utils
+fi
 
 semanage permissive -a httpd_t
 
