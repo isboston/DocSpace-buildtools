@@ -67,7 +67,7 @@ ${package_manager} -y install \
 			valkey \
 			expect
 
-# add ffmpeg-free SDL2 java
+# Use AlmaLinux and EPEL repos to install ffmpeg-free, SDL2, and OpenJDK
 tee /etc/yum.repos.d/alma-temporary.repo <<'EOF'
 [alma-appstream]
 name=AlmaLinux 9 AppStream
@@ -91,7 +91,7 @@ EOF
 ${package_manager} install -y --enablerepo=alma-appstream,alma-crb,epel-9 ffmpeg-free SDL2 java-${JAVA_VERSION}-openjdk-headless
 ${package_manager} config-manager --set-disabled alma-appstream alma-crb epel-9
 
-# dotnet
+# Add Microsoft .NET 9 repo and install SDK
 rpm --import https://packages.microsoft.com/keys/microsoft.asc
 
 tee /etc/yum.repos.d/microsoft-dotnet9.repo <<'EOF'
