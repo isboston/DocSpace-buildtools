@@ -57,7 +57,6 @@ rpm --import https://openresty.org/package/pubkey.gpg
 curl -o /etc/yum.repos.d/openresty.repo https://openresty.org/package/"${OPENRESTY_DISTR_NAME}"/openresty.repo
 sed -i "s/\$releasever/2023/g" /etc/yum.repos.d/openresty.repo
 
-JAVA_VERSION=21
 ${package_manager} -y install \
 			python3 \
 			nodejs \
@@ -90,6 +89,7 @@ enabled=0
 gpgcheck=0
 EOF
 
+JAVA_VERSION=21
 ${package_manager} install -y --enablerepo=alma-appstream,alma-crb,epel-9 \
             java-${JAVA_VERSION}-openjdk-headless \
             ffmpeg-free \
