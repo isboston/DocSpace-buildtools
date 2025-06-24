@@ -1,27 +1,30 @@
-name: Install OneClickInstall DocSpace
-
 on:
-  schedule:
-    - cron: '0 20 * * 0'
-
   workflow_dispatch:
     inputs:
-      os_list:
+      os_deb:
         description: |
-          Comma-separated distros to test:
-          rhel9, centos9s, debian11, debian12,
-          ubuntu2204, ubuntu2404, fedora41, fedora42
-          Use “all” (default) or leave blank to run every distro.
-        default: all
+          DEB-based distros to test (comma-separated):
+          debian11, debian12, ubuntu2204, ubuntu2404
+          Leave empty to skip specific selection.
+        required: false
+        default: ""
+
+      os_rpm:
+        description: |
+          RPM-based distros to test (comma-separated):
+          rhel9, centos9s, fedora41, fedora42
+          Leave empty to skip specific selection.
+        required: false
+        default: ""
 
       deb_build:
         type: boolean
-        description: Run tests on DEB-based distros (Debian / Ubuntu)
+        description: Enable DEB-based tests
         default: true
 
       rpm_build:
         type: boolean
-        description: Run tests on RPM-based distros (RHEL / CentOS / Fedora)
+        description: Enable RPM-based tests
         default: true
 
 jobs:
@@ -35,33 +38,51 @@ jobs:
         id: build
         env:
           OS_MAP: |
-            {"rhel9":["RHEL 9","generic"],
-             "centos9s":["CentOS 9 Stream","onlyoffice"],
-             "debian11":["Debian 11","onlyoffice"],
-             "debian12":["Debian 12","onlyoffice"],
-             "ubuntu2204":["Ubuntu 22.04","onlyoffice"],
-             "ubuntu2404":["Ubuntu 24.04","onlyoffice"],
-             "fedora41":["Fedora 41","onlyoffice"],
-             "fedora42":["Fedora 42","onlyoffice"]}
+            {
+              "rhel9":      ["RHEL 9",      "generic"],
+              "centos9s":   ["CentOS 9 Stream", "onlyoffice"],
+              "debian11":   ["Debian 11",   "onlyoffice"],
+              "debian12":   ["Debian 12",   "onlyoffice"],
+              "ubuntu2204": ["Ubuntu 22.04","onlyoffice"],
+              "ubuntu2404": ["Ubuntu 24.04","onlyoffice"],
+              "fedora41":   ["Fedora 41",   "onlyoffice"],
+              "fedora42":   ["Fedora 42",   "onlyoffice"]
+            }
         shell: bash
         run: |
-          RAW="${{ github.event.inputs.os_list || 'all' }}"
-          [[ -z "$RAW" || "$RAW" == "all" ]] && RAW=$(jq -r 'keys|join(",")' <<<"$OS_MAP")
+          set -euo pipefail
 
-          MATRIX=$(jq -cn --arg map "$OS_MAP" --arg raw "$RAW" '
+          # Input handling
+          DEB_OK=${{ github.event.inputs.deb_build || 'true' }}
+          RPM_OK=${{ github.event.inputs.rpm_build || 'true' }}
+
+          DEB_LIST="${{ github.event.inputs.os_deb }}"
+          RPM_LIST="${{ github.event.inputs.os_rpm }}"
+
+          # Build list of selected OS
+          RAW_LIST=""
+          [[ -n "$DEB_LIST" && "$DEB_OK" == "true" ]] && RAW_LIST+="${DEB_LIST},"
+          [[ -n "$RPM_LIST" && "$RPM_OK" == "true" ]] && RAW_LIST+="${RPM_LIST},"
+
+          if [[ -z "$RAW_LIST" ]]; then
+            RAW_LIST=$(jq -r 'keys | join(",")' <<< "$OS_MAP")
+          fi
+
+          # Generate matrix
+          MATRIX=$(jq -cn --arg map "$OS_MAP" --arg raw "$RAW_LIST" '
             ($map|fromjson) as $m |
             ($raw|split(",")|map(select(length>0))) as $ids |
             {include: $ids|map(select($m[.]?) | {name:$m[.][0], os:., distr:$m[.][1]})}
           ')
 
-          MATRIX=$(jq --argjson deb ${{ github.event.inputs.deb_build || 'true' }} \
-                      --argjson rpm ${{ github.event.inputs.rpm_build || 'true' }} '
+          # Final filter via deb/rpm flags
+          MATRIX=$(jq --argjson deb "$DEB_OK" --argjson rpm "$RPM_OK" '
             .include |= map(select(
-              ($deb and (.name|test("Debian|Ubuntu"))) or
-              ($rpm and (.name|test("CentOS|Fedora|RHEL")))
-            ))' <<<"$MATRIX")
+              ($deb and (.name | test("Debian|Ubuntu"))) or
+              ($rpm and (.name | test("CentOS|Fedora|RHEL")))
+            ))' <<< "$MATRIX")
 
-          echo "matrix=$(jq -c <<<"$MATRIX")" >>"$GITHUB_OUTPUT"
+          echo "matrix=$(jq -c <<< "$MATRIX")" >> "$GITHUB_OUTPUT"
 
 
   vagrant-up:
