@@ -1,9 +1,11 @@
+name: Install OneClickInstall DocSpace
+
 on:
   workflow_dispatch:
     inputs:
       os_deb:
         description: |
-          DEB-based distros to test (comma-separated):
+          DEB-based distros:
           debian11, debian12, ubuntu2204, ubuntu2404
           Leave empty to skip specific selection.
         required: false
@@ -11,7 +13,7 @@ on:
 
       os_rpm:
         description: |
-          RPM-based distros to test (comma-separated):
+          RPM-based distros:
           rhel9, centos9s, fedora41, fedora42
           Leave empty to skip specific selection.
         required: false
