@@ -53,21 +53,16 @@ jobs:
             }
         shell: bash
         run: |
-          set -euo pipefail
-
-          ALL="${{ github.event.inputs.all }}"
           DEB="${{ github.event.inputs.deb_build }}"
           RPM="${{ github.event.inputs.rpm_build }}"
-          OS_DEB="${{ github.event.inputs.os_deb }}"
-          OS_RPM="${{ github.event.inputs.os_rpm }}"
 
           declare -A IS_MANUAL=()
           RAW_LIST=()
 
-          if [[ "$ALL" == "true" ]]; then
+          if [[ "${{ github.event.inputs.all }}" == "true" ]]; then
             mapfile -t RAW_LIST < <(jq -r 'keys_unsorted[]' <<< "$OS_MAP")
           else
-            for pair in "$OS_DEB" "$OS_RPM"; do
+            for pair in "${{ github.event.inputs.os_deb }}" "${{ github.event.inputs.os_rpm }}"; do
               [[ -n "$pair" ]] || continue
               IFS=',' read -ra arr <<< "$pair"
               for os in "${arr[@]}"; do
@@ -102,7 +97,7 @@ jobs:
               ((.name | test("CentOS|Fedora|RHEL")) and $rpm)
             ))' <<< "$jq_input")
 
-          [[ "$(jq '.include | length' <<< "$matrix")" -eq 0 ]] && {
+          (( $(jq '.include | length' <<< "$matrix") )) || {
             echo "::error ::Matrix is empty after filtering."
             exit 1
           }
