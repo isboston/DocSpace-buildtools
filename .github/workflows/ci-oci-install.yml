@@ -90,8 +90,7 @@ jobs:
               include: $list | map(select($map[.]?) | {
                 name: $map[.][0],
                 os: .,
-                distr: $map[.][1],
-                manual: (IN(.)) # overridden below
+                distr: $map[.][1]
               })
             }' | jq --argjson manual_keys "$(printf '%s\n' "${!IS_MANUAL[@]}" | jq -R . | jq -s .)" '
               .include |= map(. + {manual: (.os as $id | $manual_keys | index($id) != null)})
