@@ -6,14 +6,14 @@ on:
       os_deb:
         description: |
           DEB-based distros:
-          debian11, debian12, ubuntu2204, ubuntu2404
+          debian11,debian12,ubuntu2204,ubuntu2404
         required: false
         default: ""
 
       os_rpm:
         description: |
           RPM-based distros:
-          rhel9, centos9s, fedora41, fedora42
+          rhel9,centos9s,fedora41,fedora42
         required: false
         default: ""
 
