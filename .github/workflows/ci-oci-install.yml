@@ -6,28 +6,22 @@ on:
 
   workflow_dispatch:
     inputs:
-      target_set:           # enum-переключатель
-        type: choice
-        description: 'Набор дистрибутивов'
-        options: |
-          all        # все из каталога
-          deb-only   # семейство DEB
-          rpm-only   # семейство RPM
-          custom     # список вручную (см. custom_json)
-        default: all
-
-      custom_json:          # используется, если target_set == custom
-        description: 'JSON-массив, например ["debian11","ubuntu2204"]'
+      target_set:
+        description: 'Выберите группу ОС: all, deb-only, rpm-only, custom'
+        required: true
+        default: 'all'
+      custom_json:
+        description: 'Только если выбран custom: JSON-массив, например ["debian11","ubuntu2204"]'
         required: false
-
       deb_build:
         type: boolean
-        description: 'Запускать DEB-тесты'
+        description: 'Запускать DEB-семейство'
         default: true
       rpm_build:
         type: boolean
-        description: 'Запускать RPM-тесты'
+        description: 'Запускать RPM-семейство'
         default: true
+
 
 jobs:
   prepare:
@@ -41,21 +35,39 @@ jobs:
         run: |
           set -euo pipefail
 
-          # ---------- 0. Читаем входы ----------
-          target_set='${{ github.event.inputs.target_set }}'
-          custom_json='${{ github.event.inputs.custom_json }}'
+          # 0. Входные параметры
+          target_set="${{ github.event.inputs.target_set }}"
+          custom_json="${{ github.event.inputs.custom_json }}"
           deb='${{ github.event.inputs.deb_build }}'
           rpm='${{ github.event.inputs.rpm_build }}'
 
-          # ---------- 1. Определяем wanted-массив ----------
+          # 1. Определим набор ОС
           case "$target_set" in
-            all)      want='["all"]' ;;
-            deb-only) want='["all"]' ; rpm=false ;;
-            rpm-only) want='["all"]' ; deb=false ;;
-            custom)   want="${custom_json:-["all"]}" ;;
+            all)
+              want='["all"]'
+              ;;
+            deb-only)
+              want='["all"]'
+              rpm=false
+              ;;
+            rpm-only)
+              want='["all"]'
+              deb=false
+              ;;
+            custom)
+              if [[ -n "$custom_json" ]]; then
+                want="$custom_json"
+              else
+                want='["all"]'
+              fi
+              ;;
+            *)
+              echo "::error ::Unknown target_set=$target_set"
+              exit 1
+              ;;
           esac
 
-          # ---------- 2. Каталог поддерживаемых ОС ----------
+          # 2. Каталог
           cat > /tmp/catalog.json <<'JSON'
           [
             {"name":"RHEL 9",      "os":"rhel9",          "distr":"generic",    "family":"rpm"},
@@ -69,23 +81,24 @@ jobs:
           ]
           JSON
 
-          # ---------- 3. Фильтрация через jq (без кавычечных ловушек) ----------
+          # 3. Фильтрация
           sel=$(jq -n \
               --slurpfile all /tmp/catalog.json \
               --argjson want "$want" \
               --argjson deb "$deb" \
               --argjson rpm "$rpm" '
-            ($all[0])                             # сам массив
-            | map(select(                        # отбираем нужные дистры
-                ($want | index("all")) or
-                (.os as $o | $want | index($o))
-              ))
-            | map(select(                        # применяем deb/rpm-флаги
-                ($deb and .family=="deb") or
-                ($rpm and .family=="rpm")
-              ))')
+            ($all[0]) |
+            map(select(
+              ($want | index("all")) or
+              (.os as $o | $want | index($o))
+            )) |
+            map(select(
+              ($deb and .family == "deb") or
+              ($rpm and .family == "rpm")
+            ))')
 
           echo "matrix={\"include\":$sel}" >> "$GITHUB_OUTPUT"
+
 
   vagrant-up:
     name: "Test DocSpace with ${{ matrix.name}}"
