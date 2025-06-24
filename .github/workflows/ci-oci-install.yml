@@ -82,7 +82,6 @@ jobs:
             RPM_BUILD=true
 
           else
-            # DEB handling
             if [[ -n "$OS_DEB" ]]; then
               RAW_LIST+="${OS_DEB},"
               MANUAL_DEB=true
@@ -90,7 +89,6 @@ jobs:
               RAW_LIST+="debian11,debian12,ubuntu2204,ubuntu2404,"
             fi
 
-            # RPM handling
             if [[ -n "$OS_RPM" ]]; then
               RAW_LIST+="${OS_RPM},"
               MANUAL_RPM=true
@@ -101,27 +99,34 @@ jobs:
             RAW_LIST="${RAW_LIST%,}"
           fi
 
-          # Fallback to full matrix if totally empty
           if [[ -z "$RAW_LIST" ]]; then
             echo "::notice ::Nothing selected — fallback to full matrix"
             RAW_LIST=$(jq -r 'keys | join(",")' <<< "$OS_MAP")
             DEB_BUILD=true
             RPM_BUILD=true
+            MANUAL_DEB=false
+            MANUAL_RPM=false
           fi
 
           echo "::group::[RAW_LIST]"
           echo "$RAW_LIST"
           echo "::endgroup::"
 
-          # Build matrix
           MATRIX=$(jq -cn --arg map "$OS_MAP" --arg raw "$RAW_LIST" '
             ($map|fromjson) as $m |
             ($raw|split(",")|map(select(length>0))) as $ids |
             {include: $ids|map(select($m[.]?) | {name:$m[.][0], os:., distr:$m[.][1]})}
           ')
 
-          # Only filter if no manual input
-          if [[ "$MANUAL_DEB" == "false" || "$MANUAL_RPM" == "false" ]]; then
+          FILTER=false
+          if [[ "$MANUAL_DEB" == "false" && "$DEB_BUILD" == "true" ]]; then
+            FILTER=true
+          fi
+          if [[ "$MANUAL_RPM" == "false" && "$RPM_BUILD" == "true" ]]; then
+            FILTER=true
+          fi
+
+          if [[ "$FILTER" == "true" ]]; then
             MATRIX=$(jq --argjson deb "$DEB_BUILD" --argjson rpm "$RPM_BUILD" '
               .include |= map(select(
                 ($deb and (.name | test("Debian|Ubuntu"))) or
