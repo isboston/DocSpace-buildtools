@@ -10,13 +10,13 @@ on:
 
       deb_build:
         type: boolean
-        description: Select all DEB-based distros
-        default: false
+        description: Run tests on DEB-based distros
+        default: true
 
       rpm_build:
         type: boolean
-        description: Select all RPM-based distros
-        default: false
+        description: Run tests on RPM-based distros
+        default: true
 
 jobs:
   prepare:
@@ -44,10 +44,6 @@ jobs:
           DEB="${{ github.event.inputs.deb_build }}"
           RPM="${{ github.event.inputs.rpm_build }}"
           OS_INPUT="${{ github.event.inputs.os }}"
-
-          echo "DEBUG: deb_build=$DEB"
-          echo "DEBUG: rpm_build=$RPM"
-          echo "DEBUG: os='$OS_INPUT'"
 
           RAW_LIST=()
 
