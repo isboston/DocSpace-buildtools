@@ -6,7 +6,15 @@ on:
       os:
         description: Ignored if deb_build or rpm_build is true
         required: false
-        default: debian11,debian12,ubuntu2204,ubuntu2404,rhel9,centos9s,fedora41,fedora42
+        default: |
+          debian11,
+          debian12,
+          ubuntu2204,
+          ubuntu2404,
+          rhel9,
+          centos9s,
+          fedora41,
+          fedora42
 
       deb_build:
         type: boolean
@@ -41,50 +49,31 @@ jobs:
             }
         shell: bash
         run: |
+          OS_INPUT="${{ github.event.inputs.os }}"
           DEB="${{ github.event.inputs.deb_build }}"
           RPM="${{ github.event.inputs.rpm_build }}"
-          OS_INPUT="${{ github.event.inputs.os }}"
 
-          RAW_LIST=()
+          declare -A os_set=()
+          [[ -n "$OS_INPUT" ]] && for os in ${OS_INPUT//,/ }; do os_set["$os"]=1; done
 
-          # Always consider manual OS input if present
-          if [[ -n "$OS_INPUT" ]]; then
-            echo "Including manually selected OS: $OS_INPUT"
-            for os in ${OS_INPUT//,/ }; do RAW_LIST+=("$os"); done
-          fi
+          [[ "$DEB" == "true" ]] && \
+            for os in $(jq -r 'to_entries[] | select(.value[0] | test("Debian|Ubuntu")) | .key' <<< "$OS_MAP"); do os_set["$os"]=1; done
 
-          # Add all DEB-based OS if deb_build is true
-          if [[ "$DEB" == "true" ]]; then
-            echo "Including all DEB-based OS"
-            mapfile -t deb_os < <(jq -r 'to_entries[] | select(.value[0] | test("Debian|Ubuntu")) | .key' <<< "$OS_MAP")
-            RAW_LIST+=("${deb_os[@]}")
-          fi
+          [[ "$RPM" == "true" ]] && \
+            for os in $(jq -r 'to_entries[] | select(.value[0] | test("CentOS|Fedora|RHEL")) | .key' <<< "$OS_MAP"); do os_set["$os"]=1; done
 
-          # Add all RPM-based OS if rpm_build is true
-          if [[ "$RPM" == "true" ]]; then
-            echo "Including all RPM-based OS"
-            mapfile -t rpm_os < <(jq -r 'to_entries[] | select(.value[0] | test("CentOS|Fedora|RHEL")) | .key' <<< "$OS_MAP")
-            RAW_LIST+=("${rpm_os[@]}")
-          fi
-
-          # Deduplicate RAW_LIST
-          RAW_LIST=($(printf '%s\n' "${RAW_LIST[@]}" | sort -u))
-
-          RAW_JSON=$(printf '%s\n' "${RAW_LIST[@]}" | jq -R . | jq -s .)
+          RAW_JSON=$(printf '%s\n' "${!os_set[@]}" | sort | jq -R . | jq -s .)
 
           jq_input=$(jq -n \
             --argjson map "$(jq <<< "$OS_MAP")" \
             --argjson list "$RAW_JSON" '
-            {
-              include: $list | map({
-                name: $map[.][0],
-                os: .,
-                distr: $map[.][1]
-              })
-            }')
-
-          echo "Final matrix:"
-          jq <<< "$jq_input"
+              {
+                include: $list | map({
+                  name: $map[.][0],
+                  os: .,
+                  distr: $map[.][1]
+                })
+              }')
 
           echo "matrix=$(jq -c <<< "$jq_input")" >> "$GITHUB_OUTPUT"
 
