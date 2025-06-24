@@ -39,19 +39,20 @@ jobs:
     steps:
       - name: Build test matrix
         id: build
+        env:
+          OS_MAP: |
+            {
+              "rhel9":      ["RHEL 9", "generic"],
+              "centos9s":   ["CentOS 9 Stream", "onlyoffice"],
+              "debian11":   ["Debian 11", "onlyoffice"],
+              "debian12":   ["Debian 12", "onlyoffice"],
+              "ubuntu2204": ["Ubuntu 22.04", "onlyoffice"],
+              "ubuntu2404": ["Ubuntu 24.04", "onlyoffice"],
+              "fedora41":   ["Fedora 41", "onlyoffice"],
+              "fedora42":   ["Fedora 42", "onlyoffice"]
+            }
+        shell: bash
         run: |
-          read -r -d '' OS_MAP << 'EOF'
-          {
-            "rhel9":      ["RHEL 9", "generic"],
-            "centos9s":   ["CentOS 9 Stream", "onlyoffice"],
-            "debian11":   ["Debian 11", "onlyoffice"],
-            "debian12":   ["Debian 12", "onlyoffice"],
-            "ubuntu2204": ["Ubuntu 22.04", "onlyoffice"],
-            "ubuntu2404": ["Ubuntu 24.04", "onlyoffice"],
-            "fedora41":   ["Fedora 41", "onlyoffice"],
-            "fedora42":   ["Fedora 42", "onlyoffice"]
-          }
-          EOF
           DEB="${{ github.event.inputs.deb_build }}"
           RPM="${{ github.event.inputs.rpm_build }}"
 
@@ -77,17 +78,17 @@ jobs:
           [[ ${#RAW_LIST[@]} -eq 0 ]] && mapfile -t RAW_LIST < <(jq -r 'keys_unsorted[]' <<< "$OS_MAP")
 
           jq_input=$(jq -n \
-          --argjson list "$(printf '%s\n' "${RAW_LIST[@]}" | jq -R . | jq -s .)" \
-          --argjson manual_keys "$(printf '%s\n' "${!IS_MANUAL[@]:-}" | jq -R . | jq -s . || echo '[]')" \
-          --slurpfile map <(printf '%s' "$OS_MAP" | jq .) '
-          {
-            include: $list | map({
-              name: $map[0][.][0],
-              os: .,
-              distr: $map[0][.][1],
-              manual: (. as $id | $manual_keys | index($id) != null)
-            })
-          }')
+            --argjson map "$OS_MAP" \
+            --argjson list "$(printf '%s\n' "${RAW_LIST[@]}" | jq -R . | jq -s .)" \
+            --argjson manual_keys "$(printf '%s\n' "${!IS_MANUAL[@]}" | jq -R . | jq -s .)" '
+            {
+              include: $list | map({
+                name: $map[.][0],
+                os: .,
+                distr: $map[.][1],
+                manual: (. as $id | $manual_keys | index($id) != null)
+              })
+            }')
 
           matrix=$(jq --argjson deb "$DEB" --argjson rpm "$RPM" '
             .include |= map(select(
