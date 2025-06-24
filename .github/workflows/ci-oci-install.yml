@@ -52,12 +52,14 @@ jobs:
           declare -A IS_MANUAL=()
           RAW_LIST=()
 
-          [[ "${{ github.event.inputs.deb_build }}" != "true" ]] && for os in $(tr ',' ' ' <<< "${{ github.event.inputs.os_deb }}"); do RAW_LIST+=("$os"); IS_MANUAL["$os"]=true; done
-          [[ "${{ github.event.inputs.rpm_build }}" != "true" ]] && for os in $(tr ',' ' ' <<< "${{ github.event.inputs.os_rpm }}"); do RAW_LIST+=("$os"); IS_MANUAL["$os"]=true; done
-
-
-          [[ "${{ github.event.inputs.deb_build }}" == "true" ]] && mapfile -t deb_ids < <(jq -r 'to_entries[] | select(.value[0] | test("Debian|Ubuntu")) | .key' <<< "$OS_MAP") && RAW_LIST+=("${deb_ids[@]}")
-          [[ "${{ github.event.inputs.rpm_build }}" == "true" ]] && mapfile -t rpm_ids < <(jq -r 'to_entries[] | select(.value[0] | test("CentOS|Fedora|RHEL")) | .key' <<< "$OS_MAP") && RAW_LIST+=("${rpm_ids[@]}")
+          if [[ "${{ github.event.inputs.deb_build }}" == "true" ]]; then
+            mapfile -t RAW_LIST < <(jq -r 'to_entries[] | select(.value[0] | test("Debian|Ubuntu")) | .key' <<< "$OS_MAP")
+          elif [[ "${{ github.event.inputs.rpm_build }}" == "true" ]]; then
+            mapfile -t RAW_LIST < <(jq -r 'to_entries[] | select(.value[0] | test("CentOS|Fedora|RHEL")) | .key' <<< "$OS_MAP")
+          else
+            for os in $(tr ',' ' ' <<< "${{ github.event.inputs.os_deb }}"); do RAW_LIST+=("$os"); IS_MANUAL["$os"]=true; done
+            for os in $(tr ',' ' ' <<< "${{ github.event.inputs.os_rpm }}"); do RAW_LIST+=("$os"); IS_MANUAL["$os"]=true; done
+          fi
 
           [[ ${#RAW_LIST[@]} -eq 0 ]] && RAW_LIST=($(jq -r 'keys_unsorted[]' <<< "$OS_MAP"))
 
