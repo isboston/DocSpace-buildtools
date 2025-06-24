@@ -44,26 +44,43 @@ jobs:
               "fedora41":   ["Fedora 41", "onlyoffice"],
               "fedora42":   ["Fedora 42", "onlyoffice"]
             }
-        shell: bash
+                shell: bash
         run: |
           DEB="${{ github.event.inputs.deb_build }}"
           RPM="${{ github.event.inputs.rpm_build }}"
           OS_DEB="${{ github.event.inputs.os_deb }}"
           OS_RPM="${{ github.event.inputs.os_rpm }}"
 
+          echo "DEBUG: deb_build=$DEB"
+          echo "DEBUG: rpm_build=$RPM"
+          echo "DEBUG: os_deb='$OS_DEB'"
+          echo "DEBUG: os_rpm='$OS_RPM'"
+
           RAW_LIST=()
 
           if [[ "$DEB" == "true" ]]; then
+            echo "Using all DEB-based OS"
             mapfile -t RAW_LIST < <(jq -r 'to_entries[] | select(.value[0] | test("Debian|Ubuntu")) | .key' <<< "$OS_MAP")
-          elif [[ "$RPM" == "true" ]]; then
-            mapfile -t RAW_LIST < <(jq -r 'to_entries[] | select(.value[0] | test("CentOS|Fedora|RHEL")) | .key' <<< "$OS_MAP")
-          else
-            [[ -n "$OS_DEB" ]] && for os in ${OS_DEB//,/ }; do RAW_LIST+=("$os"); done
-            [[ -n "$OS_RPM" ]] && for os in ${OS_RPM//,/ }; do RAW_LIST+=("$os"); done
+          fi
+
+          if [[ "$RPM" == "true" ]]; then
+            echo "Using all RPM-based OS"
+            mapfile -t tmp < <(jq -r 'to_entries[] | select(.value[0] | test("CentOS|Fedora|RHEL")) | .key' <<< "$OS_MAP")
+            RAW_LIST+=("${tmp[@]}")
+          fi
+
+          if [[ "$DEB" != "true" && -n "$OS_DEB" ]]; then
+            echo "Using custom DEB list: $OS_DEB"
+            for os in ${OS_DEB//,/ }; do RAW_LIST+=("$os"); done
+          fi
+
+          if [[ "$RPM" != "true" && -n "$OS_RPM" ]]; then
+            echo "Using custom RPM list: $OS_RPM"
+            for os in ${OS_RPM//,/ }; do RAW_LIST+=("$os"); done
           fi
 
           if [[ ${#RAW_LIST[@]} -eq 0 ]]; then
-            echo "::error ::No OS selected."
+            echo "::error ::No OS selected. Set at least one distro or enable deb_build/rpm_build."
             exit 1
           fi
 
@@ -77,6 +94,9 @@ jobs:
                 distr: $map[.][1]
               })
             }')
+
+          echo "Final matrix:"
+          jq <<< "$jq_input"
 
           echo "matrix=$(jq -c <<< "$jq_input")" >> "$GITHUB_OUTPUT"
 
