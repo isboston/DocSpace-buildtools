@@ -78,8 +78,8 @@ jobs:
 
           jq_input=$(jq -n \
           --argjson list "$(printf '%s\n' "${RAW_LIST[@]}" | jq -R . | jq -s .)" \
-          --argjson manual_keys "$(printf '%s\n' "${!IS_MANUAL[@]}" | jq -R . | jq -s .)" \
-          --slurpfile map <(jq '.' <<< "$OS_MAP") '
+          --argjson manual_keys "$(printf '%s\n' "${!IS_MANUAL[@]:-}" | jq -R . | jq -s . || echo '[]')" \
+          --slurpfile map <(printf '%s' "$OS_MAP" | jq .) '
           {
             include: $list | map({
               name: $map[0][.][0],
