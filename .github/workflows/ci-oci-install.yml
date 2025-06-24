@@ -75,7 +75,7 @@ jobs:
             [[ "$RPM" == "true" ]] && mapfile -t rpm_ids < <(jq -r 'to_entries[] | select(.value[0] | test("CentOS|Fedora|RHEL")) | .key' <<< "$OS_MAP") && RAW_LIST+=("${rpm_ids[@]}")
           fi
 
-          [[ ${#RAW_LIST[@]} -eq 0 ]] && mapfile -t RAW_LIST < <(jq -r 'keys_unsorted[]' <<< "$OS_MAP")
+          [[ ${#RAW_LIST[@]} -eq 0 ]] && RAW_LIST=($(jq -r 'keys_unsorted[]' <<< "$OS_MAP"))
 
           jq_input=$(jq -n \
             --argjson map "$OS_MAP" \
