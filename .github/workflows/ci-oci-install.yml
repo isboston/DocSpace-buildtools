@@ -72,31 +72,28 @@ jobs:
           OS_RPM="${{ github.event.inputs.os_rpm }}"
 
           RAW_LIST=""
+          MANUAL_MODE=false
 
           if [[ "$ALL" == "true" ]]; then
             echo "::notice ::all=true → enabling all distros"
             RAW_LIST=$(jq -r 'keys | join(",")' <<< "$OS_MAP")
             DEB_BUILD=true
             RPM_BUILD=true
+
           else
-            [[ -n "$OS_DEB" ]] && RAW_LIST+="${OS_DEB},"
-            [[ -n "$OS_RPM" ]] && RAW_LIST+="${OS_RPM},"
+            [[ -n "$OS_DEB" ]] && RAW_LIST+="${OS_DEB}," && MANUAL_MODE=true
+            [[ -n "$OS_RPM" ]] && RAW_LIST+="${OS_RPM}," && MANUAL_MODE=true
 
-            if [[ -z "$RAW_LIST" && "$DEB_BUILD" == "true" ]]; then
-              echo "::notice ::deb_build=true with no list → using all DEB distros"
-              RAW_LIST+="debian11,debian12,ubuntu2204,ubuntu2404,"
-            fi
-
-            if [[ -z "$RAW_LIST" && "$RPM_BUILD" == "true" ]]; then
-              echo "::notice ::rpm_build=true with no list → using all RPM distros"
-              RAW_LIST+="rhel9,centos9s,fedora41,fedora42,"
+            if [[ "$MANUAL_MODE" == "false" ]]; then
+              [[ "$DEB_BUILD" == "true" ]] && RAW_LIST+="debian11,debian12,ubuntu2204,ubuntu2404,"
+              [[ "$RPM_BUILD" == "true" ]] && RAW_LIST+="rhel9,centos9s,fedora41,fedora42,"
             fi
 
             RAW_LIST="${RAW_LIST%,}"
           fi
 
           if [[ -z "$RAW_LIST" ]]; then
-            echo "::notice ::Nothing selected — falling back to full matrix"
+            echo "::notice ::Nothing selected — fallback to full matrix"
             RAW_LIST=$(jq -r 'keys | join(",")' <<< "$OS_MAP")
             DEB_BUILD=true
             RPM_BUILD=true
@@ -106,17 +103,21 @@ jobs:
           echo "$RAW_LIST"
           echo "::endgroup::"
 
+          # Генерация матрицы
           MATRIX=$(jq -cn --arg map "$OS_MAP" --arg raw "$RAW_LIST" '
             ($map|fromjson) as $m |
             ($raw|split(",")|map(select(length>0))) as $ids |
             {include: $ids|map(select($m[.]?) | {name:$m[.][0], os:., distr:$m[.][1]})}
           ')
 
-          MATRIX=$(jq --argjson deb "$DEB_BUILD" --argjson rpm "$RPM_BUILD" '
-            .include |= map(select(
-              ($deb and (.name | test("Debian|Ubuntu"))) or
-              ($rpm and (.name | test("CentOS|Fedora|RHEL")))
-            ))' <<< "$MATRIX")
+          # Только фильтруем, если это НЕ ручной ввод
+          if [[ "$MANUAL_MODE" == "false" ]]; then
+            MATRIX=$(jq --argjson deb "$DEB_BUILD" --argjson rpm "$RPM_BUILD" '
+              .include |= map(select(
+                ($deb and (.name | test("Debian|Ubuntu"))) or
+                ($rpm and (.name | test("CentOS|Fedora|RHEL")))
+              ))' <<< "$MATRIX")
+          fi
 
           if [[ "$(jq '.include | length' <<< "$MATRIX")" -eq 0 ]]; then
             echo "::error ::Matrix is empty after filtering. Check your inputs."
