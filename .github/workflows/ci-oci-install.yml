@@ -3,6 +3,10 @@ name: Install OneClickInstall DocSpace
 on:
   workflow_dispatch:
     inputs:
+      all:
+        type: boolean
+        description: Enable all distros (overrides everything else)
+        default: false
       os_deb:
         description: |
           DEB-based distros:
@@ -19,12 +23,12 @@ on:
 
       deb_build:
         type: boolean
-        description: Enable DEB-based tests
+        description: Enable all DEB-based tests
         default: false
 
       rpm_build:
         type: boolean
-        description: Enable RPM-based tests
+        description: Enable all RPM-based tests
         default: false
 
 jobs:
@@ -52,31 +56,40 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Input handling
-          DEB_OK=${{ github.event.inputs.deb_build || 'true' }}
-          RPM_OK=${{ github.event.inputs.rpm_build || 'true' }}
+          # Inputs
+          ALL=${{ github.event.inputs.all || 'false' }}
+          DEB_BUILD=${{ github.event.inputs.deb_build || 'false' }}
+          RPM_BUILD=${{ github.event.inputs.rpm_build || 'false' }}
+          OS_DEB="${{ github.event.inputs.os_deb }}"
+          OS_RPM="${{ github.event.inputs.os_rpm }}"
 
-          DEB_LIST="${{ github.event.inputs.os_deb }}"
-          RPM_LIST="${{ github.event.inputs.os_rpm }}"
-
-          # Build list of selected OS
-          RAW_LIST=""
-          [[ -n "$DEB_LIST" && "$DEB_OK" == "true" ]] && RAW_LIST+="${DEB_LIST},"
-          [[ -n "$RPM_LIST" && "$RPM_OK" == "true" ]] && RAW_LIST+="${RPM_LIST},"
-
-          if [[ -z "$RAW_LIST" ]]; then
+          # Determine RAW_LIST
+          if [[ "$ALL" == "true" ]]; then
             RAW_LIST=$(jq -r 'keys | join(",")' <<< "$OS_MAP")
+          else
+            RAW_LIST=""
+            [[ -n "$OS_DEB" && "$DEB_BUILD" == "true" ]] && RAW_LIST+="${OS_DEB},"
+            [[ -n "$OS_RPM" && "$RPM_BUILD" == "true" ]] && RAW_LIST+="${OS_RPM},"
+            RAW_LIST="${RAW_LIST%,}"
           fi
 
-          # Generate matrix
+          # If everything was empty or disabled, fallback to all
+          if [[ -z "$RAW_LIST" ]]; then
+            echo "::notice ::No distros selected — defaulting to all"
+            RAW_LIST=$(jq -r 'keys | join(",")' <<< "$OS_MAP")
+            DEB_BUILD=true
+            RPM_BUILD=true
+          fi
+
+          # Build matrix from OS_MAP
           MATRIX=$(jq -cn --arg map "$OS_MAP" --arg raw "$RAW_LIST" '
             ($map|fromjson) as $m |
             ($raw|split(",")|map(select(length>0))) as $ids |
             {include: $ids|map(select($m[.]?) | {name:$m[.][0], os:., distr:$m[.][1]})}
           ')
 
-          # Final filter via deb/rpm flags
-          MATRIX=$(jq --argjson deb "$DEB_OK" --argjson rpm "$RPM_OK" '
+          # Final filtering by deb/rpm toggle
+          MATRIX=$(jq --argjson deb "$DEB_BUILD" --argjson rpm "$RPM_BUILD" '
             .include |= map(select(
               ($deb and (.name | test("Debian|Ubuntu"))) or
               ($rpm and (.name | test("CentOS|Fedora|RHEL")))
