@@ -6,22 +6,22 @@ on:
 
   workflow_dispatch:
     inputs:
-      target_set:
-        description: 'Выберите группу ОС: all, deb-only, rpm-only, custom'
-        required: true
-        default: 'all'
-      custom_json:
-        description: 'Только если выбран custom: JSON-массив, например ["debian11","ubuntu2204"]'
+      os_list:             # <— один параметр вместо восьми
+        description: >-
+          Кома-разделённый список дистрибутивов
+          (например: "rhel9,ubuntu2204") или "all"
         required: false
+        default: "all"
+
       deb_build:
         type: boolean
-        description: 'Запускать DEB-семейство'
-        default: true
-      rpm_build:
-        type: boolean
-        description: 'Запускать RPM-семейство'
+        description: "Run tests on DEB-based distros"
         default: true
 
+      rpm_build:
+        type: boolean
+        description: "Run tests on RPM-based distros"
+        default: true
 
 jobs:
   prepare:
@@ -30,80 +30,58 @@ jobs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
 
     steps:
-      - id: set-matrix
-        shell: bash
+      - name: Set matrix
+        id: set-matrix
+        env:
+          # Полный список поддерживаемых дистрибутивов
+          ALL_OSES: >-
+            rhel9 centos9s
+            debian11 debian12
+            ubuntu2204 ubuntu2404
+            fedora41 fedora42
         run: |
-          set -euo pipefail
+          # 1. Разбираем переданные пользователем ОС
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            RAW_LIST="${{ github.event.inputs.os_list }}"
+          else   # для schedule, push и т.д.
+            RAW_LIST="all"
+          fi
 
-          # 0. Входные параметры
-          target_set="${{ github.event.inputs.target_set }}"
-          custom_json="${{ github.event.inputs.custom_json }}"
-          deb='${{ github.event.inputs.deb_build }}'
-          rpm='${{ github.event.inputs.rpm_build }}'
+          if [[ -z "$RAW_LIST" || "$RAW_LIST" == "all" ]]; then
+            SELECTED=($ALL_OSES)
+          else
+            IFS=',' read -ra SELECTED <<< "$RAW_LIST"
+          fi
 
-          case "$target_set" in
-            all)
-              want='["all"]'
-              ;;
-            deb-only)
-              want='["all"]'
-              rpm=false
-              ;;
-            rpm-only)
-              want='["all"]'
-              deb=false
-              ;;
-            custom)
-              if [[ -n "$custom_json" ]]; then
-                # Проверка: если это валидный JSON-массив — используем
-                if echo "$custom_json" | jq empty 2>/dev/null; then
-                  want="$custom_json"
-                else
-                  # Обернём одиночное значение в массив: "debian11" → ["debian11"]
-                  want=$(jq -c --arg val "$custom_json" '[$val]')
-                fi
-              else
-                want='["all"]'
-              fi
-              ;;
-            *)
-              echo "::error ::Unknown target_set=$target_set"
-              exit 1
-              ;;
-          esac
+          # 2. Формируем JSON-массив include
+          INCLUDE_JSON="[]"
+          for os in "${SELECTED[@]}"; do
+            case "$os" in
+              rhel9)       NAME="RHEL 9";          DISTR="generic"      ;;
+              centos9s)    NAME="CentOS9s";        DISTR="onlyoffice"   ;;
+              debian11)    NAME="Debian11";        DISTR="onlyoffice"   ;;
+              debian12)    NAME="Debian12";        DISTR="onlyoffice"   ;;
+              ubuntu2204)  NAME="Ubuntu22.04";     DISTR="onlyoffice"   ;;
+              ubuntu2404)  NAME="Ubuntu24.04";     DISTR="onlyoffice"   ;;
+              fedora41)    NAME="Fedora41";        DISTR="onlyoffice"   ;;
+              fedora42)    NAME="Fedora42";        DISTR="onlyoffice"   ;;
+              *) echo "::warning ::Unknown OS '$os' — пропускаю"; continue ;;
+            esac
+            INCLUDE_JSON=$(jq --arg n "$NAME" --arg o "$os" --arg d "$DISTR" \
+              '. + [{name:$n, os:$o, distr:$d}]' <<< "$INCLUDE_JSON")
+          done
 
+          # 3. Отфильтровываем по deb_build / rpm_build
+          DEB=${{ github.event.inputs.deb_build  || 'true' }}
+          RPM=${{ github.event.inputs.rpm_build  || 'true' }}
 
-          # 2. Каталог
-          cat > /tmp/catalog.json <<'JSON'
-          [
-            {"name":"RHEL 9",      "os":"rhel9",          "distr":"generic",    "family":"rpm"},
-            {"name":"CentOS 9s",   "os":"base-centos9s",  "distr":"onlyoffice", "family":"rpm"},
-            {"name":"Debian 11",   "os":"base-debian11",  "distr":"onlyoffice", "family":"deb"},
-            {"name":"Debian 12",   "os":"base-debian12",  "distr":"onlyoffice", "family":"deb"},
-            {"name":"Ubuntu 22.04","os":"base-ubuntu2204","distr":"onlyoffice", "family":"deb"},
-            {"name":"Ubuntu 24.04","os":"base-ubuntu2404","distr":"onlyoffice", "family":"deb"},
-            {"name":"Fedora 41",   "os":"base-fedora41",  "distr":"onlyoffice", "family":"rpm"},
-            {"name":"Fedora 42",   "os":"base-fedora42",  "distr":"onlyoffice", "family":"rpm"}
-          ]
-          JSON
+          MATRIX=$(jq -c --argjson deb "$DEB" --argjson rpm "$RPM" \
+            '{include: [.[] | select(
+              ($deb and (.name | test("Debian|Ubuntu"))) or
+              ($rpm and (.name | test("CentOS|Fedora|RHEL")))
+            )]}' <<< "$INCLUDE_JSON")
 
-          # 3. Фильтрация
-          sel=$(jq -n \
-              --slurpfile all /tmp/catalog.json \
-              --argjson want "$want" \
-              --argjson deb "$deb" \
-              --argjson rpm "$rpm" '
-            ($all[0]) |
-            map(select(
-              ($want | index("all")) or
-              (.os as $o | $want | index($o))
-            )) |
-            map(select(
-              ($deb and .family == "deb") or
-              ($rpm and .family == "rpm")
-            ))')
-
-          echo "matrix={\"include\":$sel}" >> "$GITHUB_OUTPUT"
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
 
 
   vagrant-up:
