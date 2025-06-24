@@ -80,8 +80,6 @@ jobs:
             RAW_LIST=$(jq -r 'keys | join(",")' <<< "$OS_MAP")
             DEB_BUILD=true
             RPM_BUILD=true
-            MANUAL_DEB=false
-            MANUAL_RPM=false
           else
             if [[ -n "$OS_DEB" ]]; then
               RAW_LIST+="${OS_DEB},"
@@ -111,14 +109,18 @@ jobs:
 
           echo "::group::[RAW_LIST]"
           echo "$RAW_LIST"
+          echo "MANUAL_DEB=$MANUAL_DEB, MANUAL_RPM=$MANUAL_RPM"
           echo "::endgroup::"
 
-          # Build matrix with proper boolean flags
+          # convert manual flags to JSON-literal values
+          MD=$( $MANUAL_DEB && echo true || echo false )
+          MR=$( $MANUAL_RPM && echo true || echo false )
+
           MATRIX=$(jq -cn \
             --arg map "$OS_MAP" \
             --arg raw "$RAW_LIST" \
-            --argjson manual_deb "$MANUAL_DEB" \
-            --argjson manual_rpm "$MANUAL_RPM" '
+            --argjson manual_deb "$MD" \
+            --argjson manual_rpm "$MR" '
             ($map|fromjson) as $m |
             ($raw|split(",")|map(select(length>0))) as $ids |
             {include: $ids | map(select($m[.]?) | {
@@ -132,7 +134,6 @@ jobs:
             })}
           ')
 
-          # Filter only non-manual entries
           MATRIX=$(jq --argjson deb "$DEB_BUILD" --argjson rpm "$RPM_BUILD" '
             .include |= map(select(
               .manual == true or
