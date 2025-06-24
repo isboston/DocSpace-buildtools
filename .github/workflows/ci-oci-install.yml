@@ -8,14 +8,12 @@ on:
           DEB-based distros:
           debian11,debian12,ubuntu2204,ubuntu2404
         required: false
-        default: ""
 
       os_rpm:
         description: |
           RPM-based distros:
           rhel9,centos9s,fedora41,fedora42
         required: false
-        default: ""
 
       all:
         type: boolean
@@ -57,14 +55,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          echo "::group::[Debug inputs]"
-          echo "all = ${{ github.event.inputs.all }}"
-          echo "deb_build = ${{ github.event.inputs.deb_build }}"
-          echo "rpm_build = ${{ github.event.inputs.rpm_build }}"
-          echo "os_deb = '${{ github.event.inputs.os_deb }}'"
-          echo "os_rpm = '${{ github.event.inputs.os_rpm }}'"
-          echo "::endgroup::"
-
           ALL="${{ github.event.inputs.all || 'false' }}"
           DEB_BUILD="${{ github.event.inputs.deb_build || 'false' }}"
           RPM_BUILD="${{ github.event.inputs.rpm_build || 'false' }}"
@@ -87,9 +77,8 @@ jobs:
                 IS_MANUAL["$os"]=true
               done
             elif [[ "$DEB_BUILD" == "true" ]]; then
-              for os in debian11 debian12 ubuntu2204 ubuntu2404; do
-                RAW_LIST+=("$os")
-              done
+              readarray -t deb_ids < <(jq -r 'to_entries[] | select(.value[0] | test("Debian|Ubuntu")) | .key' <<< "$OS_MAP")
+              RAW_LIST+=("${deb_ids[@]}")
             fi
 
             if [[ -n "$OS_RPM" ]]; then
@@ -99,9 +88,8 @@ jobs:
                 IS_MANUAL["$os"]=true
               done
             elif [[ "$RPM_BUILD" == "true" ]]; then
-              for os in rhel9 centos9s fedora41 fedora42; do
-                RAW_LIST+=("$os")
-              done
+              readarray -t rpm_ids < <(jq -r 'to_entries[] | select(.value[0] | test("CentOS|Fedora|RHEL")) | .key' <<< "$OS_MAP")
+              RAW_LIST+=("${rpm_ids[@]}")
             fi
           fi
 
