@@ -65,74 +65,71 @@ jobs:
           echo "os_rpm = '${{ github.event.inputs.os_rpm }}'"
           echo "::endgroup::"
 
-          ALL=${{ github.event.inputs.all || 'false' }}
-          DEB_BUILD=${{ github.event.inputs.deb_build || 'false' }}
-          RPM_BUILD=${{ github.event.inputs.rpm_build || 'false' }}
+          ALL="${{ github.event.inputs.all || 'false' }}"
+          DEB_BUILD="${{ github.event.inputs.deb_build || 'false' }}"
+          RPM_BUILD="${{ github.event.inputs.rpm_build || 'false' }}"
           OS_DEB="${{ github.event.inputs.os_deb }}"
           OS_RPM="${{ github.event.inputs.os_rpm }}"
 
-          RAW_LIST=""
-          MANUAL_DEB=false
-          MANUAL_RPM=false
+          RAW_LIST=()
+          declare -A IS_MANUAL=()
 
           if [[ "$ALL" == "true" ]]; then
             echo "::notice ::all=true → enabling all distros"
-            RAW_LIST=$(jq -r 'keys | join(",")' <<< "$OS_MAP")
+            RAW_LIST=( $(jq -r 'keys_unsorted[]' <<< "$OS_MAP") )
             DEB_BUILD=true
             RPM_BUILD=true
           else
+            # DEB distros
             if [[ -n "$OS_DEB" ]]; then
-              RAW_LIST+="${OS_DEB},"
-              MANUAL_DEB=true
+              IFS=',' read -ra arr <<< "$OS_DEB"
+              for os in "${arr[@]}"; do
+                RAW_LIST+=("$os")
+                IS_MANUAL["$os"]=true
+              done
             elif [[ "$DEB_BUILD" == "true" ]]; then
-              RAW_LIST+="debian11,debian12,ubuntu2204,ubuntu2404,"
+              for os in debian11 debian12 ubuntu2204 ubuntu2404; do
+                RAW_LIST+=("$os")
+              done
             fi
 
+            # RPM distros
             if [[ -n "$OS_RPM" ]]; then
-              RAW_LIST+="${OS_RPM},"
-              MANUAL_RPM=true
+              IFS=',' read -ra arr <<< "$OS_RPM"
+              for os in "${arr[@]}"; do
+                RAW_LIST+=("$os")
+                IS_MANUAL["$os"]=true
+              done
             elif [[ "$RPM_BUILD" == "true" ]]; then
-              RAW_LIST+="rhel9,centos9s,fedora41,fedora42,"
+              for os in rhel9 centos9s fedora41 fedora42; do
+                RAW_LIST+=("$os")
+              done
             fi
-
-            RAW_LIST="${RAW_LIST%,}"
           fi
 
-          if [[ -z "$RAW_LIST" ]]; then
+          if [[ ${#RAW_LIST[@]} -eq 0 ]]; then
             echo "::notice ::Nothing selected — fallback to full matrix"
-            RAW_LIST=$(jq -r 'keys | join(",")' <<< "$OS_MAP")
+            RAW_LIST=( $(jq -r 'keys_unsorted[]' <<< "$OS_MAP") )
             DEB_BUILD=true
             RPM_BUILD=true
-            MANUAL_DEB=false
-            MANUAL_RPM=false
           fi
 
           echo "::group::[RAW_LIST]"
-          echo "$RAW_LIST"
-          echo "MANUAL_DEB=$MANUAL_DEB, MANUAL_RPM=$MANUAL_RPM"
+          printf "%s\n" "${RAW_LIST[@]}"
           echo "::endgroup::"
 
-          # convert manual flags to JSON-literal values
-          MD=$( $MANUAL_DEB && echo true || echo false )
-          MR=$( $MANUAL_RPM && echo true || echo false )
+          jq_input="{include:["
+          for os in "${RAW_LIST[@]}"; do
+            name=$(jq -r --arg os "$os" '.[$os][0]' <<< "$OS_MAP")
+            distr=$(jq -r --arg os "$os" '.[$os][1]' <<< "$OS_MAP")
+            manual=${IS_MANUAL[$os]:-false}
+            jq_input+='{"name":"'"$name"'","os":"'"$os"'","distr":"'"$distr"'","manual":'"$manual"'},'
+          done
+          jq_input="${jq_input%,}]}" # remove last comma
 
-          MATRIX=$(jq -cn \
-            --arg map "$OS_MAP" \
-            --arg raw "$RAW_LIST" \
-            --argjson manual_deb "$MD" \
-            --argjson manual_rpm "$MR" '
-            ($map|fromjson) as $m |
-            ($raw|split(",")|map(select(length>0))) as $ids |
-            {include: $ids | map(select($m[.]?) | {
-              name:  $m[.][0],
-              os:    .,
-              distr:$m[.][1],
-              manual: (
-                ((. | test("Debian|Ubuntu")) and $manual_deb) or
-                ((. | test("CentOS|Fedora|RHEL")) and $manual_rpm)
-              )
-            })}
-          ')
+          echo "::group::[MATRIX before filtering]"
+          echo "$jq_input" | jq
+          echo "::endgroup::"
 
           MATRIX=$(jq --argjson deb "$DEB_BUILD" --argjson rpm "$RPM_BUILD" '
             .include |= map(select(
@@ -142,7 +139,11 @@ jobs:
               ) or (
                 (.name | test("CentOS|Fedora|RHEL")) and $rpm
               )
-            ))' <<< "$MATRIX")
+            ))' <<< "$jq_input")
+
+          echo "::group::[MATRIX after filtering]"
+          echo "$MATRIX" | jq
+          echo "::endgroup::"
 
           if [[ "$(jq '.include | length' <<< "$MATRIX")" -eq 0 ]]; then
             echo "::error ::Matrix is empty after filtering. Check your inputs."
