@@ -5,7 +5,7 @@ on:
     inputs:
       os_deb:
         description: |
-          DEB-based distros (comma-separated, no spaces):
+          DEB-based distros:
           debian11,debian12,ubuntu2204,ubuntu2404
           Example: debian11,ubuntu2404
         required: false
@@ -13,7 +13,7 @@ on:
 
       os_rpm:
         description: |
-          RPM-based distros (comma-separated, no spaces):
+          RPM-based distros:
           rhel9,centos9s,fedora41,fedora42
           Example: centos9s,fedora42
         required: false
