@@ -79,25 +79,24 @@ jobs:
             DEB_BUILD=true
             RPM_BUILD=true
           else
-            [[ -n "$OS_DEB" && "$DEB_BUILD" == "true" ]] && RAW_LIST+="${OS_DEB},"
-            [[ -n "$OS_RPM" && "$RPM_BUILD" == "true" ]] && RAW_LIST+="${OS_RPM},"
+            [[ -n "$OS_DEB" ]] && RAW_LIST+="${OS_DEB},"
+            [[ -n "$OS_RPM" ]] && RAW_LIST+="${OS_RPM},"
+
+            if [[ -z "$RAW_LIST" && "$DEB_BUILD" == "true" ]]; then
+              echo "::notice ::deb_build=true with no list → using all DEB distros"
+              RAW_LIST+="debian11,debian12,ubuntu2204,ubuntu2404,"
+            fi
+
+            if [[ -z "$RAW_LIST" && "$RPM_BUILD" == "true" ]]; then
+              echo "::notice ::rpm_build=true with no list → using all RPM distros"
+              RAW_LIST+="rhel9,centos9s,fedora41,fedora42,"
+            fi
+
             RAW_LIST="${RAW_LIST%,}"
           fi
 
-          if [[ -z "$RAW_LIST" && "$DEB_BUILD" == "true" ]]; then
-            echo "::notice ::deb_build=true, but no distros specified. Selecting all DEB-based distros."
-            RAW_LIST+="debian11,debian12,ubuntu2204,ubuntu2404,"
-          fi
-
-          if [[ -z "$RAW_LIST" && "$RPM_BUILD" == "true" ]]; then
-            echo "::notice ::rpm_build=true, but no distros specified. Selecting all RPM-based distros."
-            RAW_LIST+="rhel9,centos9s,fedora41,fedora42,"
-          fi
-
-          RAW_LIST="${RAW_LIST%,}"  # remove trailing comma
-
           if [[ -z "$RAW_LIST" ]]; then
-            echo "::notice ::No distros selected at all. Defaulting to full matrix."
+            echo "::notice ::Nothing selected — falling back to full matrix"
             RAW_LIST=$(jq -r 'keys | join(",")' <<< "$OS_MAP")
             DEB_BUILD=true
             RPM_BUILD=true
