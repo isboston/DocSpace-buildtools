@@ -113,12 +113,12 @@ jobs:
           echo "$RAW_LIST"
           echo "::endgroup::"
 
-          # Build matrix with manual flag
+          # Build matrix with proper boolean flags
           MATRIX=$(jq -cn \
             --arg map "$OS_MAP" \
             --arg raw "$RAW_LIST" \
-            --arg manual_deb "$MANUAL_DEB" \
-            --arg manual_rpm "$MANUAL_RPM" '
+            --argjson manual_deb "$MANUAL_DEB" \
+            --argjson manual_rpm "$MANUAL_RPM" '
             ($map|fromjson) as $m |
             ($raw|split(",")|map(select(length>0))) as $ids |
             {include: $ids | map(select($m[.]?) | {
@@ -126,8 +126,8 @@ jobs:
               os:    .,
               distr:$m[.][1],
               manual: (
-                (. | test("Debian|Ubuntu")) and ($manual_deb == "true") or
-                (. | test("CentOS|Fedora|RHEL")) and ($manual_rpm == "true")
+                ((. | test("Debian|Ubuntu")) and $manual_deb) or
+                ((. | test("CentOS|Fedora|RHEL")) and $manual_rpm)
               )
             })}
           ')
