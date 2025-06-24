@@ -48,52 +48,37 @@ jobs:
         run: |
           DEB="${{ github.event.inputs.deb_build }}"
           RPM="${{ github.event.inputs.rpm_build }}"
+          OS_DEB="${{ github.event.inputs.os_deb }}"
+          OS_RPM="${{ github.event.inputs.os_rpm }}"
 
-          declare -A IS_MANUAL=()
           RAW_LIST=()
 
-          if [[ "${{ github.event.inputs.deb_build }}" == "true" ]]; then
+          if [[ "$DEB" == "true" ]]; then
             mapfile -t RAW_LIST < <(jq -r 'to_entries[] | select(.value[0] | test("Debian|Ubuntu")) | .key' <<< "$OS_MAP")
-          elif [[ "${{ github.event.inputs.rpm_build }}" == "true" ]]; then
+          elif [[ "$RPM" == "true" ]]; then
             mapfile -t RAW_LIST < <(jq -r 'to_entries[] | select(.value[0] | test("CentOS|Fedora|RHEL")) | .key' <<< "$OS_MAP")
           else
-            [[ "$DEB" != "true" && -n "${{ github.event.inputs.os_deb }}" ]] && \
-              for os in $(tr ',' ' ' <<< "${{ github.event.inputs.os_deb }}"); do [[ -n "$os" ]] && RAW_LIST+=("$os") && IS_MANUAL["$os"]=true; done
-
-            [[ "$RPM" != "true" && -n "${{ github.event.inputs.os_rpm }}" ]] && \
-              for os in $(tr ',' ' ' <<< "${{ github.event.inputs.os_rpm }}"); do [[ -n "$os" ]] && RAW_LIST+=("$os") && IS_MANUAL["$os"]=true; done
+            [[ -n "$OS_DEB" ]] && for os in ${OS_DEB//,/ }; do RAW_LIST+=("$os"); done
+            [[ -n "$OS_RPM" ]] && for os in ${OS_RPM//,/ }; do RAW_LIST+=("$os"); done
           fi
 
-          if [[ ${#RAW_LIST[@]} -eq 0 && "$DEB" != "true" && "$RPM" != "true" ]]; then
-            RAW_LIST=($(jq -r 'keys_unsorted[]' <<< "$OS_MAP"))
+          if [[ ${#RAW_LIST[@]} -eq 0 ]]; then
+            echo "::error ::No OS selected."
+            exit 1
           fi
 
           jq_input=$(jq -n \
             --argjson map "$OS_MAP" \
-            --argjson list "$(printf '%s\n' "${RAW_LIST[@]}" | jq -R . | jq -s .)" \
-            --argjson manual_keys "$(printf '%s\n' "${!IS_MANUAL[@]}" | jq -R . | jq -s .)" '
+            --argjson list "$(printf '%s\n' "${RAW_LIST[@]}" | jq -R . | jq -s .)" '
             {
               include: $list | map({
                 name: $map[.][0],
                 os: .,
-                distr: $map[.][1],
-                manual: (. as $id | $manual_keys | index($id) != null)
+                distr: $map[.][1]
               })
             }')
 
-          matrix=$(jq --argjson deb "$DEB" --argjson rpm "$RPM" '
-            .include |= map(select(
-              .manual == true or
-              ((.name | test("Debian|Ubuntu")) and $deb) or
-              ((.name | test("CentOS|Fedora|RHEL")) and $rpm)
-            ))' <<< "$jq_input")
-
-          (( $(jq '.include | length' <<< "$matrix") )) || {
-            echo "::error ::Matrix is empty after filtering."
-            exit 1
-          }
-
-          echo "matrix=$(jq -c <<< "$matrix")" >> "$GITHUB_OUTPUT"
+          echo "matrix=$(jq -c <<< "$jq_input")" >> "$GITHUB_OUTPUT"
 
   vagrant-up:
     name: "Test DocSpace with ${{ matrix.name}}"
