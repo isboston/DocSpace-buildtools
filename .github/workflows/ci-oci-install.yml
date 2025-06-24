@@ -72,7 +72,8 @@ jobs:
           OS_RPM="${{ github.event.inputs.os_rpm }}"
 
           RAW_LIST=""
-          MANUAL_MODE=false
+          MANUAL_DEB=false
+          MANUAL_RPM=false
 
           if [[ "$ALL" == "true" ]]; then
             echo "::notice ::all=true → enabling all distros"
@@ -81,17 +82,26 @@ jobs:
             RPM_BUILD=true
 
           else
-            [[ -n "$OS_DEB" ]] && RAW_LIST+="${OS_DEB}," && MANUAL_MODE=true
-            [[ -n "$OS_RPM" ]] && RAW_LIST+="${OS_RPM}," && MANUAL_MODE=true
+            # DEB handling
+            if [[ -n "$OS_DEB" ]]; then
+              RAW_LIST+="${OS_DEB},"
+              MANUAL_DEB=true
+            elif [[ "$DEB_BUILD" == "true" ]]; then
+              RAW_LIST+="debian11,debian12,ubuntu2204,ubuntu2404,"
+            fi
 
-            if [[ "$MANUAL_MODE" == "false" ]]; then
-              [[ "$DEB_BUILD" == "true" ]] && RAW_LIST+="debian11,debian12,ubuntu2204,ubuntu2404,"
-              [[ "$RPM_BUILD" == "true" ]] && RAW_LIST+="rhel9,centos9s,fedora41,fedora42,"
+            # RPM handling
+            if [[ -n "$OS_RPM" ]]; then
+              RAW_LIST+="${OS_RPM},"
+              MANUAL_RPM=true
+            elif [[ "$RPM_BUILD" == "true" ]]; then
+              RAW_LIST+="rhel9,centos9s,fedora41,fedora42,"
             fi
 
             RAW_LIST="${RAW_LIST%,}"
           fi
 
+          # Fallback to full matrix if totally empty
           if [[ -z "$RAW_LIST" ]]; then
             echo "::notice ::Nothing selected — fallback to full matrix"
             RAW_LIST=$(jq -r 'keys | join(",")' <<< "$OS_MAP")
@@ -103,15 +113,15 @@ jobs:
           echo "$RAW_LIST"
           echo "::endgroup::"
 
-          # Генерация матрицы
+          # Build matrix
           MATRIX=$(jq -cn --arg map "$OS_MAP" --arg raw "$RAW_LIST" '
             ($map|fromjson) as $m |
             ($raw|split(",")|map(select(length>0))) as $ids |
             {include: $ids|map(select($m[.]?) | {name:$m[.][0], os:., distr:$m[.][1]})}
           ')
 
-          # Только фильтруем, если это НЕ ручной ввод
-          if [[ "$MANUAL_MODE" == "false" ]]; then
+          # Only filter if no manual input
+          if [[ "$MANUAL_DEB" == "false" || "$MANUAL_RPM" == "false" ]]; then
             MATRIX=$(jq --argjson deb "$DEB_BUILD" --argjson rpm "$RPM_BUILD" '
               .include |= map(select(
                 ($deb and (.name | test("Debian|Ubuntu"))) or
