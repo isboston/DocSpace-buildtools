@@ -2,86 +2,66 @@ name: Install OneClickInstall DocSpace
 
 on:
   schedule:
-    - cron: '00 20 * * 0'
+    - cron: '0 20 * * 0'
 
   workflow_dispatch:
     inputs:
-      os_list:             # <— один параметр вместо восьми
-        description: >-
-          Кома-разделённый список дистрибутивов
-          (например: "rhel9,ubuntu2204") или "all"
-        required: false
-        default: "all"
+      os_list:
+        description: |
+          Comma-separated distros to test:
+          rhel9, centos9s, debian11, debian12,
+          ubuntu2204, ubuntu2404, fedora41, fedora42
+          Use “all” (default) or leave blank to run every distro.
+        default: all
 
       deb_build:
         type: boolean
-        description: "Run tests on DEB-based distros"
+        description: Run tests on DEB-based distros (Debian / Ubuntu)
         default: true
 
       rpm_build:
         type: boolean
-        description: "Run tests on RPM-based distros"
+        description: Run tests on RPM-based distros (RHEL / CentOS / Fedora)
         default: true
 
 jobs:
   prepare:
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      matrix: ${{ steps.build.outputs.matrix }}
 
     steps:
-      - name: Set matrix
-        id: set-matrix
+      - name: Build test matrix
+        id: build
         env:
-          # Полный список поддерживаемых дистрибутивов
-          ALL_OSES: >-
-            rhel9 centos9s
-            debian11 debian12
-            ubuntu2204 ubuntu2404
-            fedora41 fedora42
+          OS_MAP: |
+            {"rhel9":["RHEL 9","generic"],
+             "centos9s":["CentOS 9 Stream","onlyoffice"],
+             "debian11":["Debian 11","onlyoffice"],
+             "debian12":["Debian 12","onlyoffice"],
+             "ubuntu2204":["Ubuntu 22.04","onlyoffice"],
+             "ubuntu2404":["Ubuntu 24.04","onlyoffice"],
+             "fedora41":["Fedora 41","onlyoffice"],
+             "fedora42":["Fedora 42","onlyoffice"]}
+        shell: bash
         run: |
-          # 1. Разбираем переданные пользователем ОС
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            RAW_LIST="${{ github.event.inputs.os_list }}"
-          else   # для schedule, push и т.д.
-            RAW_LIST="all"
-          fi
+          RAW="${{ github.event.inputs.os_list || 'all' }}"
+          [[ -z "$RAW" || "$RAW" == "all" ]] && RAW=$(jq -r 'keys|join(",")' <<<"$OS_MAP")
 
-          if [[ -z "$RAW_LIST" || "$RAW_LIST" == "all" ]]; then
-            SELECTED=($ALL_OSES)
-          else
-            IFS=',' read -ra SELECTED <<< "$RAW_LIST"
-          fi
+          MATRIX=$(jq -cn --arg map "$OS_MAP" --arg raw "$RAW" '
+            ($map|fromjson) as $m |
+            ($raw|split(",")|map(select(length>0))) as $ids |
+            {include: $ids|map(select($m[.]?) | {name:$m[.][0], os:., distr:$m[.][1]})}
+          ')
 
-          # 2. Формируем JSON-массив include
-          INCLUDE_JSON="[]"
-          for os in "${SELECTED[@]}"; do
-            case "$os" in
-              rhel9)       NAME="RHEL 9";          DISTR="generic"      ;;
-              centos9s)    NAME="CentOS9s";        DISTR="onlyoffice"   ;;
-              debian11)    NAME="Debian11";        DISTR="onlyoffice"   ;;
-              debian12)    NAME="Debian12";        DISTR="onlyoffice"   ;;
-              ubuntu2204)  NAME="Ubuntu22.04";     DISTR="onlyoffice"   ;;
-              ubuntu2404)  NAME="Ubuntu24.04";     DISTR="onlyoffice"   ;;
-              fedora41)    NAME="Fedora41";        DISTR="onlyoffice"   ;;
-              fedora42)    NAME="Fedora42";        DISTR="onlyoffice"   ;;
-              *) echo "::warning ::Unknown OS '$os' — пропускаю"; continue ;;
-            esac
-            INCLUDE_JSON=$(jq --arg n "$NAME" --arg o "$os" --arg d "$DISTR" \
-              '. + [{name:$n, os:$o, distr:$d}]' <<< "$INCLUDE_JSON")
-          done
+          MATRIX=$(jq --argjson deb ${{ github.event.inputs.deb_build || 'true' }} \
+                      --argjson rpm ${{ github.event.inputs.rpm_build || 'true' }} '
+            .include |= map(select(
+              ($deb and (.name|test("Debian|Ubuntu"))) or
+              ($rpm and (.name|test("CentOS|Fedora|RHEL")))
+            ))' <<<"$MATRIX")
 
-          # 3. Отфильтровываем по deb_build / rpm_build
-          DEB=${{ github.event.inputs.deb_build  || 'true' }}
-          RPM=${{ github.event.inputs.rpm_build  || 'true' }}
-
-          MATRIX=$(jq -c --argjson deb "$DEB" --argjson rpm "$RPM" \
-            '{include: [.[] | select(
-              ($deb and (.name | test("Debian|Ubuntu"))) or
-              ($rpm and (.name | test("CentOS|Fedora|RHEL")))
-            )]}' <<< "$INCLUDE_JSON")
-
-          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+          echo "matrix=$(jq -c <<<"$MATRIX")" >>"$GITHUB_OUTPUT"
 
 
   vagrant-up:
