@@ -57,10 +57,10 @@ jobs:
           elif [[ "${{ github.event.inputs.rpm_build }}" == "true" ]]; then
             mapfile -t RAW_LIST < <(jq -r 'to_entries[] | select(.value[0] | test("CentOS|Fedora|RHEL")) | .key' <<< "$OS_MAP")
           else
-            [[ "$DEB" != "true" && "${{ github.event.inputs.os_deb }}" != "$(jq -r 'to_entries[] | select(.value[0] | test("Debian|Ubuntu")) | .key' <<< "$OS_MAP" | paste -sd',' -)" ]] && \
+            [[ "$DEB" != "true" && -n "${{ github.event.inputs.os_deb }}" ]] && \
               for os in $(tr ',' ' ' <<< "${{ github.event.inputs.os_deb }}"); do [[ -n "$os" ]] && RAW_LIST+=("$os") && IS_MANUAL["$os"]=true; done
 
-            [[ "$RPM" != "true" && "${{ github.event.inputs.os_rpm }}" != "$(jq -r 'to_entries[] | select(.value[0] | test("CentOS|Fedora|RHEL")) | .key' <<< "$OS_MAP" | paste -sd',' -)" ]] && \
+            [[ "$RPM" != "true" && -n "${{ github.event.inputs.os_rpm }}" ]] && \
               for os in $(tr ',' ' ' <<< "${{ github.event.inputs.os_rpm }}"); do [[ -n "$os" ]] && RAW_LIST+=("$os") && IS_MANUAL["$os"]=true; done
           fi
 
