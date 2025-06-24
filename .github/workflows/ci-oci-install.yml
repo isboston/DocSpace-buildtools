@@ -6,63 +6,86 @@ on:
 
   workflow_dispatch:
     inputs:
-      distros:                # <— ключевой input
-        description: >
-          JSON-массив с ID дистрибутивов
-          (["all"] — прогнать всё, либо например
-          ["debian11","ubuntu2204"]).
-        default: '["all"]'
-        required: false       # string по-умолчанию
+      target_set:           # enum-переключатель
+        type: choice
+        description: 'Набор дистрибутивов'
+        options: |
+          all        # все из каталога
+          deb-only   # семейство DEB
+          rpm-only   # семейство RPM
+          custom     # список вручную (см. custom_json)
+        default: all
+
+      custom_json:          # используется, если target_set == custom
+        description: 'JSON-массив, например ["debian11","ubuntu2204"]'
+        required: false
+
       deb_build:
         type: boolean
-        description: 'Run tests on DEB-based distros'
+        description: 'Запускать DEB-тесты'
         default: true
       rpm_build:
         type: boolean
-        description: 'Run tests on RPM-based distros'
+        description: 'Запускать RPM-тесты'
         default: true
-
 
 jobs:
   prepare:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+
     steps:
       - id: set-matrix
         shell: bash
         run: |
           set -euo pipefail
-          # 1. Что попросил пользователь
-          input='${{ github.event.inputs.distros }}'
-          [[ -z "$input" || "$input" == '["all"]' ]] && \
-            input='["rhel9","centos9s","debian11","debian12","ubuntu2204","ubuntu2404","fedora41","fedora42"]'
 
-          # 2. Полный каталог поддерживаемых ОС (добавлять здесь сколько угодно)
-          all='[
-            {"name":"RHEL 9",      "os":"rhel9",          "distr":"generic",     "family":"rpm"},
-            {"name":"CentOS 9s",   "os":"base-centos9s",  "distr":"onlyoffice",  "family":"rpm"},
-            {"name":"Debian 11",   "os":"base-debian11",  "distr":"onlyoffice",  "family":"deb"},
-            {"name":"Debian 12",   "os":"base-debian12",  "distr":"onlyoffice",  "family":"deb"},
-            {"name":"Ubuntu 22.04","os":"base-ubuntu2204","distr":"onlyoffice",  "family":"deb"},
-            {"name":"Ubuntu 24.04","os":"base-ubuntu2404","distr":"onlyoffice",  "family":"deb"},
-            {"name":"Fedora 41",   "os":"base-fedora41",  "distr":"onlyoffice",  "family":"rpm"},
-            {"name":"Fedora 42",   "os":"base-fedora42",  "distr":"onlyoffice",  "family":"rpm"}
-          ]'
+          # ---------- 0. Читаем входы ----------
+          target_set='${{ github.event.inputs.target_set }}'
+          custom_json='${{ github.event.inputs.custom_json }}'
+          deb='${{ github.event.inputs.deb_build }}'
+          rpm='${{ github.event.inputs.rpm_build }}'
 
-          # 3. Фильтруем:
-          sel=$(jq -c --argjson want "$input" --argjson deb ${{ github.event.inputs.deb_build || true }} \
-                           --argjson rpm ${{ github.event.inputs.rpm_build || true }} \
-            '$want as $w | '$all' |
-            map(select(
-              ($w | index("all")) or                     # все
-              (.os as $o | $w | index($o))               # явно указанные
-            )) |
-            map(select(
-              ($deb and .family=="deb") or
-              ($rpm and .family=="rpm")
-            ))')
-          echo "matrix={\"include\":$sel}" >> $GITHUB_OUTPUT
+          # ---------- 1. Определяем wanted-массив ----------
+          case "$target_set" in
+            all)      want='["all"]' ;;
+            deb-only) want='["all"]' ; rpm=false ;;
+            rpm-only) want='["all"]' ; deb=false ;;
+            custom)   want="${custom_json:-["all"]}" ;;
+          esac
+
+          # ---------- 2. Каталог поддерживаемых ОС ----------
+          cat > /tmp/catalog.json <<'JSON'
+          [
+            {"name":"RHEL 9",      "os":"rhel9",          "distr":"generic",    "family":"rpm"},
+            {"name":"CentOS 9s",   "os":"base-centos9s",  "distr":"onlyoffice", "family":"rpm"},
+            {"name":"Debian 11",   "os":"base-debian11",  "distr":"onlyoffice", "family":"deb"},
+            {"name":"Debian 12",   "os":"base-debian12",  "distr":"onlyoffice", "family":"deb"},
+            {"name":"Ubuntu 22.04","os":"base-ubuntu2204","distr":"onlyoffice", "family":"deb"},
+            {"name":"Ubuntu 24.04","os":"base-ubuntu2404","distr":"onlyoffice", "family":"deb"},
+            {"name":"Fedora 41",   "os":"base-fedora41",  "distr":"onlyoffice", "family":"rpm"},
+            {"name":"Fedora 42",   "os":"base-fedora42",  "distr":"onlyoffice", "family":"rpm"}
+          ]
+          JSON
+
+          # ---------- 3. Фильтрация через jq (без кавычечных ловушек) ----------
+          sel=$(jq -n \
+              --slurpfile all /tmp/catalog.json \
+              --argjson want "$want" \
+              --argjson deb "$deb" \
+              --argjson rpm "$rpm" '
+            ($all[0])                             # сам массив
+            | map(select(                        # отбираем нужные дистры
+                ($want | index("all")) or
+                (.os as $o | $want | index($o))
+              ))
+            | map(select(                        # применяем deb/rpm-флаги
+                ($deb and .family=="deb") or
+                ($rpm and .family=="rpm")
+              ))')
+
+          echo "matrix={\"include\":$sel}" >> "$GITHUB_OUTPUT"
 
   vagrant-up:
     name: "Test DocSpace with ${{ matrix.name}}"
