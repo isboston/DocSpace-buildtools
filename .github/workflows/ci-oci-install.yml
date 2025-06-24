@@ -54,7 +54,10 @@ jobs:
           RPM="${{ github.event.inputs.rpm_build }}"
 
           declare -A os_set=()
-          [[ -n "$OS_INPUT" ]] && for os in ${OS_INPUT//,/ }; do os_set["$os"]=1; done
+          if [[ "$DEB" != "true" && "$RPM" != "true" && -n "$OS_INPUT" ]]; then
+            echo "Using manual OS input: $OS_INPUT"
+            for os in ${OS_INPUT//,/ }; do os_set["$os"]=1; done
+          fi
 
           [[ "$DEB" == "true" ]] && \
             for os in $(jq -r 'to_entries[] | select(.value[0] | test("Debian|Ubuntu")) | .key' <<< "$OS_MAP"); do os_set["$os"]=1; done
