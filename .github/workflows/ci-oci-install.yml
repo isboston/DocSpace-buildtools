@@ -7,7 +7,7 @@ on:
         description: |
           DEB-based distros:
         required: false
-        default: debian11,debian12,ubuntu2204,ubuntu2404,ubuntu2505
+        default: debian11,debian12,ubuntu2204,ubuntu2404
 
       os_rpm:
         description: |
