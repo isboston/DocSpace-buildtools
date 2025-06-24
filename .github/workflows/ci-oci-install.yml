@@ -6,46 +6,22 @@ on:
 
   workflow_dispatch:
     inputs:
-      rhel9:
-        type: boolean
-        description: 'RHEL 9'
-        default: true
-      centos9s:
-         type: boolean
-         description: 'CentOS 9 Stream'
-         default: true
-      debian11:
-         type: boolean
-         description: 'Debian 11'
-         default: true
-      debian12:
-         type: boolean
-         description: 'Debian 12'
-         default: true
-      ubuntu2204:
-         type: boolean
-         description: 'Ubuntu 22.04'
-         default: true
-      ubuntu2404:
-          type: boolean
-          description: 'Ubuntu 24.04'
-          default: true
-      fedora41:
-         type: boolean
-         description: 'Fedora 41'
-         default: true
-      fedora42:
-        type: boolean
-        description: 'Fedora 42'
-        default: true
+      distros:                # <— ключевой input
+        description: >
+          JSON-массив с ID дистрибутивов
+          (["all"] — прогнать всё, либо например
+          ["debian11","ubuntu2204"]).
+        default: '["all"]'
+        required: false       # string по-умолчанию
       deb_build:
         type: boolean
-        description: "Run tests on DEB-based distros"
+        description: 'Run tests on DEB-based distros'
         default: true
       rpm_build:
         type: boolean
-        description: "Run tests on RPM-based distros"
+        description: 'Run tests on RPM-based distros'
         default: true
+
 
 jobs:
   prepare:
@@ -53,29 +29,40 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - name: Set matrix names
-        id: set-matrix
+      - id: set-matrix
+        shell: bash
         run: |
-          matrix=$(echo '{
-            "include": [
-              {"execute": '${{ github.event.inputs.rhel9 || true }}', "name": "RHEL 9", "os": "rhel9", "distr": "generic"},
-              {"execute": '${{ github.event.inputs.centos9s || true }}', "name": "CentOS9s", "os": "base-centos9s", "distr": "onlyoffice"},
-              {"execute": '${{ github.event.inputs.debian11 || true }}', "name": "Debian11", "os": "base-debian11", "distr": "onlyoffice"},
-              {"execute": '${{ github.event.inputs.debian12 || true }}', "name": "Debian12", "os": "base-debian12", "distr": "onlyoffice"},
-              {"execute": '${{ github.event.inputs.ubuntu2204 || true }}', "name": "Ubuntu22.04", "os": "base-ubuntu2204", "distr": "onlyoffice"},
-              {"execute": '${{ github.event.inputs.ubuntu2404 || true }}', "name": "Ubuntu24.04", "os": "base-ubuntu2404", "distr": "onlyoffice"},
-              {"execute": '${{ github.event.inputs.fedora41 || true }}', "name": "Fedora41", "os": "base-fedora41", "distr": "onlyoffice"},
-              {"execute": '${{ github.event.inputs.fedora42 || true }}', "name": "Fedora42", "os": "base-fedora42", "distr": "onlyoffice"}
-            ]
-          }')            
+          set -euo pipefail
+          # 1. Что попросил пользователь
+          input='${{ github.event.inputs.distros }}'
+          [[ -z "$input" || "$input" == '["all"]' ]] && \
+            input='["rhel9","centos9s","debian11","debian12","ubuntu2204","ubuntu2404","fedora41","fedora42"]'
 
-          matrix=$(jq -c --argjson debuild "${{ github.event.inputs.deb_build||true }}" --argjson rpmbuild "${{ github.event.inputs.rpm_build||true }}" \
-          '{include:[.include[]|select(.execute or
-            ($debuild and(.name|test("Debian|Ubuntu"))) or
-            ($rpmbuild and(.name|test("CentOS|Fedora|RHEL")))
-          )]}' <<< "$matrix")
+          # 2. Полный каталог поддерживаемых ОС (добавлять здесь сколько угодно)
+          all='[
+            {"name":"RHEL 9",      "os":"rhel9",          "distr":"generic",     "family":"rpm"},
+            {"name":"CentOS 9s",   "os":"base-centos9s",  "distr":"onlyoffice",  "family":"rpm"},
+            {"name":"Debian 11",   "os":"base-debian11",  "distr":"onlyoffice",  "family":"deb"},
+            {"name":"Debian 12",   "os":"base-debian12",  "distr":"onlyoffice",  "family":"deb"},
+            {"name":"Ubuntu 22.04","os":"base-ubuntu2204","distr":"onlyoffice",  "family":"deb"},
+            {"name":"Ubuntu 24.04","os":"base-ubuntu2404","distr":"onlyoffice",  "family":"deb"},
+            {"name":"Fedora 41",   "os":"base-fedora41",  "distr":"onlyoffice",  "family":"rpm"},
+            {"name":"Fedora 42",   "os":"base-fedora42",  "distr":"onlyoffice",  "family":"rpm"}
+          ]'
 
-          echo "matrix=$matrix" >> $GITHUB_OUTPUT
+          # 3. Фильтруем:
+          sel=$(jq -c --argjson want "$input" --argjson deb ${{ github.event.inputs.deb_build || true }} \
+                           --argjson rpm ${{ github.event.inputs.rpm_build || true }} \
+            '$want as $w | '$all' |
+            map(select(
+              ($w | index("all")) or                     # все
+              (.os as $o | $w | index($o))               # явно указанные
+            )) |
+            map(select(
+              ($deb and .family=="deb") or
+              ($rpm and .family=="rpm")
+            ))')
+          echo "matrix={\"include\":$sel}" >> $GITHUB_OUTPUT
 
   vagrant-up:
     name: "Test DocSpace with ${{ matrix.name}}"
