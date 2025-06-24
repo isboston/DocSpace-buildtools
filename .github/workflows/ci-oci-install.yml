@@ -103,10 +103,6 @@ jobs:
               ((.name | test("CentOS|Fedora|RHEL")) and $rpm)
             ))' <<< "$jq_input")
 
-          echo "::group::[Matrix]"
-          echo "$matrix" | jq
-          echo "::endgroup::"
-
           [[ "$(jq '.include | length' <<< "$matrix")" -eq 0 ]] && {
             echo "::error ::Matrix is empty after filtering."
             exit 1
