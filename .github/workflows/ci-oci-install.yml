@@ -24,12 +24,12 @@ on:
 
       deb_build:
         type: boolean
-        description: Enable all DEB-based
+        description: Enable DEB-based
         default: false
 
       rpm_build:
         type: boolean
-        description: Enable all RPM-based
+        description: Enable RPM-based
         default: false
 
 jobs:
