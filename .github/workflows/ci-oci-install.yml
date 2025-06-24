@@ -51,6 +51,9 @@ jobs:
           OS_DEB="${{ github.event.inputs.os_deb }}"
           OS_RPM="${{ github.event.inputs.os_rpm }}"
 
+          [[ "$OS_DEB" == "debian11,debian12,ubuntu2204,ubuntu2404" && "$DEB" != "true" ]] && OS_DEB=""
+          [[ "$OS_RPM" == "rhel9,centos9s,fedora41,fedora42" && "$RPM" != "true" ]] && OS_RPM=""
+
           echo "DEBUG: deb_build=$DEB"
           echo "DEBUG: rpm_build=$RPM"
           echo "DEBUG: os_deb='$OS_DEB'"
