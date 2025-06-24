@@ -19,17 +19,17 @@ on:
 
       all:
         type: boolean
-        description: Enable all distros
+        description: Select all distros
         default: false
 
       deb_build:
         type: boolean
-        description: Enable DEB-based
+        description: Select all DEB-based distros
         default: false
 
       rpm_build:
         type: boolean
-        description: Enable RPM-based
+        description: Select all RPM-based distros
         default: false
 
 jobs:
@@ -44,14 +44,14 @@ jobs:
         env:
           OS_MAP: |
             {
-              "rhel9":      ["RHEL 9",      "generic"],
-              "centos9s":   ["CentOS 9 Stream", "onlyoffice"],
-              "debian11":   ["Debian 11",   "onlyoffice"],
-              "debian12":   ["Debian 12",   "onlyoffice"],
-              "ubuntu2204": ["Ubuntu 22.04","onlyoffice"],
-              "ubuntu2404": ["Ubuntu 24.04","onlyoffice"],
-              "fedora41":   ["Fedora 41",   "onlyoffice"],
-              "fedora42":   ["Fedora 42",   "onlyoffice"]
+              "rhel9":      ["RHEL 9",           "generic"],
+              "centos9s":   ["CentOS 9 Stream",  "onlyoffice"],
+              "debian11":   ["Debian 11",        "onlyoffice"],
+              "debian12":   ["Debian 12",        "onlyoffice"],
+              "ubuntu2204": ["Ubuntu 22.04",     "onlyoffice"],
+              "ubuntu2404": ["Ubuntu 24.04",     "onlyoffice"],
+              "fedora41":   ["Fedora 41",        "onlyoffice"],
+              "fedora42":   ["Fedora 42",        "onlyoffice"]
             }
         shell: bash
         run: |
@@ -80,7 +80,6 @@ jobs:
             DEB_BUILD=true
             RPM_BUILD=true
           else
-            # DEB distros
             if [[ -n "$OS_DEB" ]]; then
               IFS=',' read -ra arr <<< "$OS_DEB"
               for os in "${arr[@]}"; do
@@ -93,7 +92,6 @@ jobs:
               done
             fi
 
-            # RPM distros
             if [[ -n "$OS_RPM" ]]; then
               IFS=',' read -ra arr <<< "$OS_RPM"
               for os in "${arr[@]}"; do
