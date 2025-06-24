@@ -61,7 +61,9 @@ jobs:
             for os in $(tr ',' ' ' <<< "${{ github.event.inputs.os_rpm }}"); do RAW_LIST+=("$os"); IS_MANUAL["$os"]=true; done
           fi
 
-          [[ ${#RAW_LIST[@]} -eq 0 ]] && RAW_LIST=($(jq -r 'keys_unsorted[]' <<< "$OS_MAP"))
+          if [[ ${#RAW_LIST[@]} -eq 0 && "$DEB" != "true" && "$RPM" != "true" ]]; then
+            RAW_LIST=($(jq -r 'keys_unsorted[]' <<< "$OS_MAP"))
+          fi
 
           jq_input=$(jq -n \
             --argjson map "$OS_MAP" \
