@@ -87,7 +87,7 @@ jobs:
           RAW_JSON=$(printf '%s\n' "${RAW_LIST[@]}" | jq -R . | jq -s .)
 
           jq_input=$(jq -n \
-            --argjson map "$OS_MAP" \
+            --argjson map "$(jq <<< "$OS_MAP")" \
             --argjson list "$RAW_JSON" '
             {
               include: $list | map({
