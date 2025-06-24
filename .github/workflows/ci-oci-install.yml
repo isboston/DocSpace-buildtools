@@ -7,7 +7,6 @@ on:
         description: |
           DEB-based distros:
           debian11, debian12, ubuntu2204, ubuntu2404
-          Leave empty to skip specific selection.
         required: false
         default: ""
 
@@ -15,19 +14,18 @@ on:
         description: |
           RPM-based distros:
           rhel9, centos9s, fedora41, fedora42
-          Leave empty to skip specific selection.
         required: false
         default: ""
 
       deb_build:
         type: boolean
         description: Enable DEB-based tests
-        default: true
+        default: false
 
       rpm_build:
         type: boolean
         description: Enable RPM-based tests
-        default: true
+        default: false
 
 jobs:
   prepare:
@@ -85,7 +83,6 @@ jobs:
             ))' <<< "$MATRIX")
 
           echo "matrix=$(jq -c <<< "$MATRIX")" >> "$GITHUB_OUTPUT"
-
 
   vagrant-up:
     name: "Test DocSpace with ${{ matrix.name}}"
