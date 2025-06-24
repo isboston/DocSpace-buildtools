@@ -57,6 +57,16 @@ rpm --import https://openresty.org/package/pubkey.gpg
 curl -o /etc/yum.repos.d/openresty.repo https://openresty.org/package/"${OPENRESTY_DISTR_NAME}"/openresty.repo
 sed -i "s/\$releasever/2023/g" /etc/yum.repos.d/openresty.repo
 
+JAVA_VERSION=21
+
+# EPEL + AlmaLinux (с подписями)
+rpm --import https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9
+dnf config-manager --add-repo https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+
+# .NET 9 SDK
+rpm --import https://packages.microsoft.com/keys/microsoft.asc
+dnf install -y https://packages.microsoft.com/config/rhel/9/packages-microsoft-prod.rpm
+
 ${package_manager} -y install \
 			python3 \
 			nodejs \
@@ -65,50 +75,53 @@ ${package_manager} -y install \
 			postgresql${PSQL_VERSION} \
 			postgresql${PSQL_VERSION}-server \
 			rabbitmq-server \
-			valkey \
-			expect
+            valkey \
+            java-${JAVA_VERSION}-openjdk-headless \
+            dotnet-sdk-9.0 \
+            ffmpeg-free \
+            SDL2
 
 # Use AlmaLinux and EPEL repos to install ffmpeg-free, SDL2, and OpenJDK
-tee /etc/yum.repos.d/alma-temporary.repo <<'EOF'
-[alma-appstream]
-name=AlmaLinux 9 AppStream
-baseurl=https://repo.almalinux.org/almalinux/9/AppStream/$basearch/os/
-enabled=0
-gpgcheck=0
+# tee /etc/yum.repos.d/alma-temporary.repo <<'EOF'
+# [alma-appstream]
+# name=AlmaLinux 9 AppStream
+# baseurl=https://repo.almalinux.org/almalinux/9/AppStream/$basearch/os/
+# enabled=0
+# gpgcheck=0
 
-[alma-crb]
-name=AlmaLinux 9 CRB
-baseurl=https://repo.almalinux.org/almalinux/9/CRB/$basearch/os/
-enabled=0
-gpgcheck=0
+# [alma-crb]
+# name=AlmaLinux 9 CRB
+# baseurl=https://repo.almalinux.org/almalinux/9/CRB/$basearch/os/
+# enabled=0
+# gpgcheck=0
 
-[epel-9]
-name=EPEL 9 Everything
-baseurl=https://dl.fedoraproject.org/pub/epel/9/Everything/$basearch/
-enabled=0
-gpgcheck=0
-EOF
+# [epel-9]
+# name=EPEL 9 Everything
+# baseurl=https://dl.fedoraproject.org/pub/epel/9/Everything/$basearch/
+# enabled=0
+# gpgcheck=0
+# EOF
 
-JAVA_VERSION=21
-${package_manager} install -y --enablerepo=alma-appstream,alma-crb,epel-9 \
-            java-${JAVA_VERSION}-openjdk-headless \
-            ffmpeg-free \
-            SDL2 
+# JAVA_VERSION=21
+# ${package_manager} install -y --enablerepo=alma-appstream,alma-crb,epel-9 \
+#             java-${JAVA_VERSION}-openjdk-headless \
+#             ffmpeg-free \
+#             SDL2 
 
 # Add Microsoft .NET 9 repository and install SDK
-rpm --import https://packages.microsoft.com/keys/microsoft.asc
+# rpm --import https://packages.microsoft.com/keys/microsoft.asc
 
-tee /etc/yum.repos.d/microsoft-dotnet9.repo <<'EOF'
-[microsoft-dotnet9]
-name=Microsoft .NET 9 (RHEL9)
-baseurl=https://packages.microsoft.com/yumrepos/microsoft-rhel9.0-prod
-enabled=1
-gpgcheck=1
-gpgkey=https://packages.microsoft.com/keys/microsoft.asc
-EOF
+# tee /etc/yum.repos.d/microsoft-dotnet9.repo <<'EOF'
+# [microsoft-dotnet9]
+# name=Microsoft .NET 9 (RHEL9)
+# baseurl=https://packages.microsoft.com/yumrepos/microsoft-rhel9.0-prod
+# enabled=1
+# gpgcheck=1
+# gpgkey=https://packages.microsoft.com/keys/microsoft.asc
+# EOF
 
-${package_manager} clean all && ${package_manager} makecache
-${package_manager} install -y dotnet-sdk-9.0 --allowerasing
+# ${package_manager} clean all && ${package_manager} makecache
+# ${package_manager} install -y dotnet-sdk-9.0 --allowerasing
 
 # Set Java ${JAVA_VERSION} as system default
 JAVA_PATH=$(find /usr/lib/jvm/ -name "java" -path "*java-${JAVA_VERSION}*" | head -1)
