@@ -17,7 +17,7 @@ on:
 
       all:
         type: boolean
-        description: 🟢 Select all distros (default if nothing selected)
+        description: 🟢 Select all distros (default)
         default: true
 
       deb_build:
