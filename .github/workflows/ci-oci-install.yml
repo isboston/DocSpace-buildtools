@@ -118,14 +118,15 @@ jobs:
           printf "%s\n" "${RAW_LIST[@]}"
           echo "::endgroup::"
 
-          jq_input="{include:["
+          jq_input="{\"include\":["
           for os in "${RAW_LIST[@]}"; do
             name=$(jq -r --arg os "$os" '.[$os][0]' <<< "$OS_MAP")
             distr=$(jq -r --arg os "$os" '.[$os][1]' <<< "$OS_MAP")
-            manual=${IS_MANUAL[$os]:-false}
-            jq_input+='{"name":"'"$name"'","os":"'"$os"'","distr":"'"$distr"'","manual":'"$manual"'},'
+            manual_flag="false"
+            [[ "${IS_MANUAL[$os]+isset}" ]] && manual_flag="true"
+            jq_input+='{"name":"'"$name"'","os":"'"$os"'","distr":"'"$distr"'","manual":'"$manual_flag"'},'
           done
-          jq_input="${jq_input%,}]}" # remove last comma
+          jq_input="${jq_input%,}]}"
 
           echo "::group::[MATRIX before filtering]"
           echo "$jq_input" | jq
