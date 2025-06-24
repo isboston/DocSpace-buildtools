@@ -10,12 +10,12 @@ on:
 
       deb_build:
         type: boolean
-        description: Select all DEB-based distros (overrides input)
+        description: Select all DEB-based distros
         default: false
 
       rpm_build:
         type: boolean
-        description: Select all RPM-based distros (overrides input)
+        description: Select all RPM-based distros
         default: false
 
 jobs:
