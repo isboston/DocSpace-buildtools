@@ -80,7 +80,8 @@ jobs:
             RAW_LIST=$(jq -r 'keys | join(",")' <<< "$OS_MAP")
             DEB_BUILD=true
             RPM_BUILD=true
-
+            MANUAL_DEB=false
+            MANUAL_RPM=false
           else
             if [[ -n "$OS_DEB" ]]; then
               RAW_LIST+="${OS_DEB},"
@@ -112,27 +113,35 @@ jobs:
           echo "$RAW_LIST"
           echo "::endgroup::"
 
-          MATRIX=$(jq -cn --arg map "$OS_MAP" --arg raw "$RAW_LIST" '
+          # Build matrix with manual flag
+          MATRIX=$(jq -cn \
+            --arg map "$OS_MAP" \
+            --arg raw "$RAW_LIST" \
+            --arg manual_deb "$MANUAL_DEB" \
+            --arg manual_rpm "$MANUAL_RPM" '
             ($map|fromjson) as $m |
             ($raw|split(",")|map(select(length>0))) as $ids |
-            {include: $ids|map(select($m[.]?) | {name:$m[.][0], os:., distr:$m[.][1]})}
+            {include: $ids | map(select($m[.]?) | {
+              name:  $m[.][0],
+              os:    .,
+              distr:$m[.][1],
+              manual: (
+                (. | test("Debian|Ubuntu")) and ($manual_deb == "true") or
+                (. | test("CentOS|Fedora|RHEL")) and ($manual_rpm == "true")
+              )
+            })}
           ')
 
-          FILTER=false
-          if [[ "$MANUAL_DEB" == "false" && "$DEB_BUILD" == "true" ]]; then
-            FILTER=true
-          fi
-          if [[ "$MANUAL_RPM" == "false" && "$RPM_BUILD" == "true" ]]; then
-            FILTER=true
-          fi
-
-          if [[ "$FILTER" == "true" ]]; then
-            MATRIX=$(jq --argjson deb "$DEB_BUILD" --argjson rpm "$RPM_BUILD" '
-              .include |= map(select(
-                ($deb and (.name | test("Debian|Ubuntu"))) or
-                ($rpm and (.name | test("CentOS|Fedora|RHEL")))
-              ))' <<< "$MATRIX")
-          fi
+          # Filter only non-manual entries
+          MATRIX=$(jq --argjson deb "$DEB_BUILD" --argjson rpm "$RPM_BUILD" '
+            .include |= map(select(
+              .manual == true or
+              (
+                (.name | test("Debian|Ubuntu")) and $deb
+              ) or (
+                (.name | test("CentOS|Fedora|RHEL")) and $rpm
+              )
+            ))' <<< "$MATRIX")
 
           if [[ "$(jq '.include | length' <<< "$MATRIX")" -eq 0 ]]; then
             echo "::error ::Matrix is empty after filtering. Check your inputs."
