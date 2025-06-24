@@ -55,9 +55,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          ALL="${{ github.event.inputs.all || 'false' }}"
-          DEB="${{ github.event.inputs.deb_build || 'false' }}"
-          RPM="${{ github.event.inputs.rpm_build || 'false' }}"
+          ALL="${{ github.event.inputs.all }}"
+          DEB="${{ github.event.inputs.deb_build }}"
+          RPM="${{ github.event.inputs.rpm_build }}"
           OS_DEB="${{ github.event.inputs.os_deb }}"
           OS_RPM="${{ github.event.inputs.os_rpm }}"
 
@@ -80,21 +80,20 @@ jobs:
             [[ "$RPM" == "true" ]] && mapfile -t rpm_ids < <(jq -r 'to_entries[] | select(.value[0] | test("CentOS|Fedora|RHEL")) | .key' <<< "$OS_MAP") && RAW_LIST+=("${rpm_ids[@]}")
           fi
 
-          if [[ ${#RAW_LIST[@]} -eq 0 ]]; then
-            echo "::notice ::Fallback to full matrix"
-            mapfile -t RAW_LIST < <(jq -r 'keys_unsorted[]' <<< "$OS_MAP")
-          fi
+          [[ ${#RAW_LIST[@]} -eq 0 ]] && mapfile -t RAW_LIST < <(jq -r 'keys_unsorted[]' <<< "$OS_MAP")
 
-          jq_input=$(jq -n --argjson map "$OS_MAP" --argjson list "$(printf '%s\n' "${RAW_LIST[@]}" | jq -R . | jq -s .)" '
+          jq_input=$(jq -n \
+            --argjson map "$OS_MAP" \
+            --argjson list "$(printf '%s\n' "${RAW_LIST[@]}" | jq -R . | jq -s .)" \
+            --argjson manual_keys "$(printf '%s\n' "${!IS_MANUAL[@]}" | jq -R . | jq -s .)" '
             {
               include: $list | map(select($map[.]?) | {
                 name: $map[.][0],
                 os: .,
-                distr: $map[.][1]
+                distr: $map[.][1],
+                manual: (. as $id | $manual_keys | index($id) != null)
               })
-            }' | jq --argjson manual_keys "$(printf '%s\n' "${!IS_MANUAL[@]}" | jq -R . | jq -s .)" '
-              .include |= map(. + {manual: (.os as $id | $manual_keys | index($id) != null)})
-            ')
+            }')
 
           matrix=$(jq --argjson deb "$DEB" --argjson rpm "$RPM" '
             .include |= map(select(
