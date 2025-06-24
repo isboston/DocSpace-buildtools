@@ -41,7 +41,6 @@ jobs:
           deb='${{ github.event.inputs.deb_build }}'
           rpm='${{ github.event.inputs.rpm_build }}'
 
-          # 1. Определим набор ОС
           case "$target_set" in
             all)
               want='["all"]'
@@ -56,7 +55,13 @@ jobs:
               ;;
             custom)
               if [[ -n "$custom_json" ]]; then
-                want="$custom_json"
+                # Проверка: если это валидный JSON-массив — используем
+                if echo "$custom_json" | jq empty 2>/dev/null; then
+                  want="$custom_json"
+                else
+                  # Обернём одиночное значение в массив: "debian11" → ["debian11"]
+                  want=$(jq -c --arg val "$custom_json" '[$val]')
+                fi
               else
                 want='["all"]'
               fi
@@ -66,6 +71,7 @@ jobs:
               exit 1
               ;;
           esac
+
 
           # 2. Каталог
           cat > /tmp/catalog.json <<'JSON'
