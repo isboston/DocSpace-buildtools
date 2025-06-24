@@ -4,21 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       os_deb:
-        description: |
-          DEB-based distros:
+        description: DEB-based distros
         required: false
         default: debian11,debian12,ubuntu2204,ubuntu2404
 
       os_rpm:
-        description: |
-          RPM-based distros:
+        description: RPM-based distros
         required: false
         default: rhel9,centos9s,fedora41,fedora42
-
-      all:
-        type: boolean
-        description: 🟢 Select all distros (default)
-        default: true
 
       deb_build:
         type: boolean
@@ -59,21 +52,17 @@ jobs:
           declare -A IS_MANUAL=()
           RAW_LIST=()
 
-          if [[ "${{ github.event.inputs.all }}" == "true" ]]; then
-            mapfile -t RAW_LIST < <(jq -r 'keys_unsorted[]' <<< "$OS_MAP")
-          else
-            for pair in "${{ github.event.inputs.os_deb }}" "${{ github.event.inputs.os_rpm }}"; do
-              [[ -n "$pair" ]] || continue
-              IFS=',' read -ra arr <<< "$pair"
-              for os in "${arr[@]}"; do
-                RAW_LIST+=("$os")
-                IS_MANUAL["$os"]=true
-              done
+          for pair in "${{ github.event.inputs.os_deb }}" "${{ github.event.inputs.os_rpm }}"; do
+            [[ -n "$pair" ]] || continue
+            IFS=',' read -ra arr <<< "$pair"
+            for os in "${arr[@]}"; do
+              RAW_LIST+=("$os")
+              IS_MANUAL["$os"]=true
             done
+          done
 
-            [[ "$DEB" == "true" ]] && mapfile -t deb_ids < <(jq -r 'to_entries[] | select(.value[0] | test("Debian|Ubuntu")) | .key' <<< "$OS_MAP") && RAW_LIST+=("${deb_ids[@]}")
-            [[ "$RPM" == "true" ]] && mapfile -t rpm_ids < <(jq -r 'to_entries[] | select(.value[0] | test("CentOS|Fedora|RHEL")) | .key' <<< "$OS_MAP") && RAW_LIST+=("${rpm_ids[@]}")
-          fi
+          [[ "${{ github.event.inputs.deb_build }}" == "true" ]] && mapfile -t deb_ids < <(jq -r 'to_entries[] | select(.value[0] | test("Debian|Ubuntu")) | .key' <<< "$OS_MAP") && RAW_LIST+=("${deb_ids[@]}")
+          [[ "${{ github.event.inputs.rpm_build }}" == "true" ]] && mapfile -t rpm_ids < <(jq -r 'to_entries[] | select(.value[0] | test("CentOS|Fedora|RHEL")) | .key' <<< "$OS_MAP") && RAW_LIST+=("${rpm_ids[@]}")
 
           [[ ${#RAW_LIST[@]} -eq 0 ]] && RAW_LIST=($(jq -r 'keys_unsorted[]' <<< "$OS_MAP"))
 
