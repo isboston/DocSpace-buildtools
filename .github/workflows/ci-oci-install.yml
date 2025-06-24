@@ -3,10 +3,6 @@ name: Install OneClickInstall DocSpace
 on:
   workflow_dispatch:
     inputs:
-      all:
-        type: boolean
-        description: Enable all distros (overrides everything else)
-        default: false
       os_deb:
         description: |
           DEB-based distros:
@@ -21,14 +17,19 @@ on:
         required: false
         default: ""
 
+      all:
+        type: boolean
+        description: Enable all distros
+        default: false
+
       deb_build:
         type: boolean
-        description: Enable all DEB-based tests
+        description: Enable all DEB-based
         default: false
 
       rpm_build:
         type: boolean
-        description: Enable all RPM-based tests
+        description: Enable all RPM-based
         default: false
 
 jobs:
