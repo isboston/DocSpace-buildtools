@@ -57,44 +57,72 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Inputs
+          echo "::group::[Debug inputs]"
+          echo "all = ${{ github.event.inputs.all }}"
+          echo "deb_build = ${{ github.event.inputs.deb_build }}"
+          echo "rpm_build = ${{ github.event.inputs.rpm_build }}"
+          echo "os_deb = '${{ github.event.inputs.os_deb }}'"
+          echo "os_rpm = '${{ github.event.inputs.os_rpm }}'"
+          echo "::endgroup::"
+
           ALL=${{ github.event.inputs.all || 'false' }}
           DEB_BUILD=${{ github.event.inputs.deb_build || 'false' }}
           RPM_BUILD=${{ github.event.inputs.rpm_build || 'false' }}
           OS_DEB="${{ github.event.inputs.os_deb }}"
           OS_RPM="${{ github.event.inputs.os_rpm }}"
 
-          # Determine RAW_LIST
+          RAW_LIST=""
+
           if [[ "$ALL" == "true" ]]; then
+            echo "::notice ::all=true → enabling all distros"
             RAW_LIST=$(jq -r 'keys | join(",")' <<< "$OS_MAP")
+            DEB_BUILD=true
+            RPM_BUILD=true
           else
-            RAW_LIST=""
             [[ -n "$OS_DEB" && "$DEB_BUILD" == "true" ]] && RAW_LIST+="${OS_DEB},"
             [[ -n "$OS_RPM" && "$RPM_BUILD" == "true" ]] && RAW_LIST+="${OS_RPM},"
             RAW_LIST="${RAW_LIST%,}"
           fi
 
-          # If everything was empty or disabled, fallback to all
+          if [[ -z "$RAW_LIST" && "$DEB_BUILD" == "true" ]]; then
+            echo "::notice ::deb_build=true, but no distros specified. Selecting all DEB-based distros."
+            RAW_LIST+="debian11,debian12,ubuntu2204,ubuntu2404,"
+          fi
+
+          if [[ -z "$RAW_LIST" && "$RPM_BUILD" == "true" ]]; then
+            echo "::notice ::rpm_build=true, but no distros specified. Selecting all RPM-based distros."
+            RAW_LIST+="rhel9,centos9s,fedora41,fedora42,"
+          fi
+
+          RAW_LIST="${RAW_LIST%,}"  # remove trailing comma
+
           if [[ -z "$RAW_LIST" ]]; then
-            echo "::notice ::No distros selected — defaulting to all"
+            echo "::notice ::No distros selected at all. Defaulting to full matrix."
             RAW_LIST=$(jq -r 'keys | join(",")' <<< "$OS_MAP")
             DEB_BUILD=true
             RPM_BUILD=true
           fi
 
-          # Build matrix from OS_MAP
+          echo "::group::[RAW_LIST]"
+          echo "$RAW_LIST"
+          echo "::endgroup::"
+
           MATRIX=$(jq -cn --arg map "$OS_MAP" --arg raw "$RAW_LIST" '
             ($map|fromjson) as $m |
             ($raw|split(",")|map(select(length>0))) as $ids |
             {include: $ids|map(select($m[.]?) | {name:$m[.][0], os:., distr:$m[.][1]})}
           ')
 
-          # Final filtering by deb/rpm toggle
           MATRIX=$(jq --argjson deb "$DEB_BUILD" --argjson rpm "$RPM_BUILD" '
             .include |= map(select(
               ($deb and (.name | test("Debian|Ubuntu"))) or
               ($rpm and (.name | test("CentOS|Fedora|RHEL")))
             ))' <<< "$MATRIX")
+
+          if [[ "$(jq '.include | length' <<< "$MATRIX")" -eq 0 ]]; then
+            echo "::error ::Matrix is empty after filtering. Check your inputs."
+            exit 1
+          fi
 
           echo "matrix=$(jq -c <<< "$MATRIX")" >> "$GITHUB_OUTPUT"
 
