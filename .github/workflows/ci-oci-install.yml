@@ -20,7 +20,7 @@ on:
 
       rpm_build:
         type: boolean
-        description: Select all RPM-based distros (ignores field)
+        description: Select all RPM distros (ignores field)
         default: false
 
 jobs:
