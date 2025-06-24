@@ -82,7 +82,7 @@ jobs:
             --argjson list "$(printf '%s\n' "${RAW_LIST[@]}" | jq -R . | jq -s .)" \
             --argjson manual_keys "$(printf '%s\n' "${!IS_MANUAL[@]}" | jq -R . | jq -s .)" '
             {
-              include: $list | map(select($map[.]?) | {
+              include: $list | map({
                 name: $map[.][0],
                 os: .,
                 distr: $map[.][1],
