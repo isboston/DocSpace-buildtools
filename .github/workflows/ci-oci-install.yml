@@ -49,7 +49,6 @@ jobs:
             }
         run: |
           OS_INPUT="${{ github.event.inputs.os }}"
-
           declare -A os_set=()
           if [[ "${{ github.event.inputs.deb_build }}" != "true" && "${{ github.event.inputs.rpm_build }}" != "true" ]]; then
             for os in ${OS_INPUT//,/ }; do
