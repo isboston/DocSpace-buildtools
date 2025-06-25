@@ -47,29 +47,26 @@ jobs:
               "fedora41":   ["Fedora 41", "onlyoffice"],
               "fedora42":   ["Fedora 42", "onlyoffice"]
             }
-        shell: bash
         run: |
           OS_INPUT="${{ github.event.inputs.os }}"
-          DEB="${{ github.event.inputs.deb_build }}"
-          RPM="${{ github.event.inputs.rpm_build }}"
 
           declare -A os_set=()
-          if [[ "$DEB" != "true" && "$RPM" != "true" && -n "$OS_INPUT" ]]; then
-            echo "Using manual OS input: $OS_INPUT"
-            for os in ${OS_INPUT//,/ }; do os_set["$os"]=1; done
+          if [[ "${{ github.event.inputs.deb_build }}" != "true" && "${{ github.event.inputs.rpm_build }}" != "true" && -n "$OS_INPUT" ]]; then
+            for os in ${OS_INPUT//,/ }; do
+              os_trimmed="$(echo "$os" | xargs)"
+              [[ -n "$os_trimmed" ]] && os_set["$os_trimmed"]=1
+            done
           fi
 
-          [[ "$DEB" == "true" ]] && \
+          [[ "${{ github.event.inputs.deb_build }}" == "true" ]] && \
             for os in $(jq -r 'to_entries[] | select(.value[0] | test("Debian|Ubuntu")) | .key' <<< "$OS_MAP"); do os_set["$os"]=1; done
 
-          [[ "$RPM" == "true" ]] && \
+          [[ "${{ github.event.inputs.rpm_build }}" == "true" ]] && \
             for os in $(jq -r 'to_entries[] | select(.value[0] | test("CentOS|Fedora|RHEL")) | .key' <<< "$OS_MAP"); do os_set["$os"]=1; done
-
-          RAW_JSON=$(printf '%s\n' "${!os_set[@]}" | sort | jq -R . | jq -s .)
 
           jq_input=$(jq -n \
             --argjson map "$(jq <<< "$OS_MAP")" \
-            --argjson list "$RAW_JSON" '
+            --argjson list "$(printf '%s\n' "${!os_set[@]}" | sort | jq -R . | jq -s .)" '
               {
                 include: $list | map({
                   name: $map[.][0],
@@ -79,7 +76,6 @@ jobs:
               }')
 
           echo "matrix=$(jq -c <<< "$jq_input")" >> "$GITHUB_OUTPUT"
-
 
   vagrant-up:
     name: "Test DocSpace with ${{ matrix.name}}"
