@@ -51,7 +51,7 @@ jobs:
           OS_INPUT="${{ github.event.inputs.os }}"
 
           declare -A os_set=()
-          if [[ "${{ github.event.inputs.deb_build }}" != "true" && "${{ github.event.inputs.rpm_build }}" != "true" && -n "$OS_INPUT" ]]; then
+          if [[ "${{ github.event.inputs.deb_build }}" != "true" && "${{ github.event.inputs.rpm_build }}" != "true" ]]; then
             for os in ${OS_INPUT//,/ }; do
               os_trimmed="$(echo "$os" | xargs)"
               [[ -n "$os_trimmed" ]] && os_set["$os_trimmed"]=1
@@ -64,16 +64,8 @@ jobs:
           [[ "${{ github.event.inputs.rpm_build }}" == "true" ]] && \
             for os in $(jq -r 'to_entries[] | select(.value[0] | test("CentOS|Fedora|RHEL")) | .key' <<< "$OS_MAP"); do os_set["$os"]=1; done
 
-          jq_input=$(jq -n \
-            --argjson map "$(jq <<< "$OS_MAP")" \
-            --argjson list "$(printf '%s\n' "${!os_set[@]}" | sort | jq -R . | jq -s .)" '
-              {
-                include: $list | map({
-                  name: $map[.][0],
-                  os: .,
-                  distr: $map[.][1]
-                })
-              }')
+          jq_input=$(jq -n --argjson map "$OS_MAP" --argjson list "$(printf '%s\n' "${!os_set[@]}" | sort -u | jq -R . | jq -s .)" '
+              {include: $list | map({name: $map[.][0],os: .,distr: $map[.][1]})}')
 
           echo "matrix=$(jq -c <<< "$jq_input")" >> "$GITHUB_OUTPUT"
 
