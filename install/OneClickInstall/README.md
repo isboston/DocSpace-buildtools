@@ -339,12 +339,10 @@ The installation scripts support the following operating systems, which are **re
 - RHEL 9
 - CentOS 9 Stream
 - Debian 11
-- Debian 12
-- Ubuntu 20.04
-- Ubuntu 22.04
-- Ubuntu 24.04
-- Fedora 40
-- Fedora 41
+- Debian12
+- Ubuntu22.04
+- Ubuntu24.04
+- Fedora41
 <!-- OS-SUPPORT-LIST-END -->
 
 ## 📚 Additional Resources
