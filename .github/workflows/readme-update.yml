@@ -6,7 +6,7 @@ on:
       - '.github/workflows/ci-oci-install.yml'
     branches:
       - master
- 
+
 permissions:
   contents: write
 
