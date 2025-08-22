@@ -128,8 +128,9 @@ if ! dpkg -l | grep -q "opensearch"; then
 	apt-get install -yq opensearch=${ELASTIC_VERSION}
 else
 	ELASTIC_PLUGIN="/usr/share/opensearch/bin/opensearch-plugin"
-	if dpkg --compare-versions dpkg-query -W -f='${Version}\n' opensearch 2>/dev/null || true ne "$ELASTIC_VERSION"; then
+	if dpkg --compare-versions "$(dpkg-query -W -f='${Version}\n' opensearch 2>/dev/null || true)" ne "$ELASTIC_VERSION"; then
 		"${ELASTIC_PLUGIN}" list | grep -q ingest-attachment && "${ELASTIC_PLUGIN}" remove -s ingest-attachment
+		systemctl restart opensearch || true
 	fi
 fi
 
