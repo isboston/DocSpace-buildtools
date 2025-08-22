@@ -127,9 +127,8 @@ apt-get install -o DPkg::options::="--force-confnew" -yq \
 if ! dpkg -l | grep -q "opensearch"; then
 	apt-get install -yq opensearch=${ELASTIC_VERSION}
 else
-	CUR_VER=$(dpkg-query -W -f='${Version}\n' opensearch 2>/dev/null || true)
-	if dpkg --compare-versions "$CUR_VER" ne "$ELASTIC_VERSION"; then
-		ELASTIC_PLUGIN="/usr/share/opensearch/bin/opensearch-plugin"
+	ELASTIC_PLUGIN="/usr/share/opensearch/bin/opensearch-plugin"
+	if dpkg --compare-versions dpkg-query -W -f='${Version}\n' opensearch 2>/dev/null || true ne "$ELASTIC_VERSION"; then
 		"${ELASTIC_PLUGIN}" list | grep -q ingest-attachment && "${ELASTIC_PLUGIN}" remove -s ingest-attachment
 	fi
 fi
