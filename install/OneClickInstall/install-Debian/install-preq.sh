@@ -103,15 +103,20 @@ if [ "$DIST" = "ubuntu" ]; then
 	chmod 644 /usr/share/keyrings/redis.gpg
 fi
 
-# curl -fsSL https://openresty.org/package/pubkey.gpg | gpg --no-default-keyring --keyring gnupg-ring:/usr/share/keyrings/openresty.gpg --import
-# echo "deb [signed-by=/usr/share/keyrings/openresty.gpg] http://openresty.org/package/$DIST ${DISTRIB_CODENAME} $([ "$DIST" = "ubuntu" ] && echo "main" || echo "openresty" )" | tee /etc/apt/sources.list.d/openresty.list
+# OpenResty APT key + repo
+install -d -m 0755 /usr/share/keyrings
+if [ ! -f /usr/share/keyrings/openresty.gpg ]; then
+  curl -fsSL https://openresty.org/package/pubkey.gpg | gpg --dearmor --yes -o /usr/share/keyrings/openresty.gpg
+fi
 chmod 644 /usr/share/keyrings/openresty.gpg
+
 OR_DIST="$DIST"
 OR_CODENAME="$DISTRIB_CODENAME"
 if [ "$DIST" = "debian" ] && [ "$DISTRIB_CODENAME" = "trixie" ]; then
   OR_CODENAME="bookworm"
 fi
-echo "deb [signed-by=/usr/share/keyrings/openresty.gpg] http://openresty.org/package/${OR_DIST} ${OR_CODENAME} $([ "$DIST" = "ubuntu" ] && echo "main" || echo "openresty" )" | tee /etc/apt/sources.list.d/openresty.list
+echo "deb [signed-by=/usr/share/keyrings/openresty.gpg] http://openresty.org/package/${OR_DIST} ${OR_CODENAME} $([ "$DIST" = "ubuntu" ] && echo "main" || echo "openresty" )" \
+  | tee /etc/apt/sources.list.d/openresty.list >/dev/null
 
 #add java repo
 curl -fsSL https://packages.adoptium.net/artifactory/api/gpg/key/public | gpg --dearmor | tee /usr/share/keyrings/adoptium.gpg > /dev/null
