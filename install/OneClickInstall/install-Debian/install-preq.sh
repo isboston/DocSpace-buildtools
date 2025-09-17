@@ -61,10 +61,7 @@ fi
 
 MYSQL_REPO_VERSION="$(curl -fsSL https://repo.mysql.com | grep -oP 'mysql-apt-config_\K.*' | grep -o '^[^_]*' | sort --version-sort --field-separator=. | tail -n1)"
 MYSQL_PACKAGE_NAME="mysql-apt-config_${MYSQL_REPO_VERSION}_all.deb"
-# MYSQL_CODENAME="$DISTRIB_CODENAME"
-# if [ "$DIST" = "debian" ] && [ "$DISTRIB_CODENAME" = "trixie" ]; then
-#   MYSQL_CODENAME="bookworm"
-# fi
+MYSQL_CODENAME=$([ "$DISTRIB_CODENAME" = "trixie" ] && echo "bookworm" || echo "$DISTRIB_CODENAME")
 if ! dpkg -l | grep -q "mysql-server"; then
 
 	MYSQL_SERVER_HOST=${MYSQL_SERVER_HOST:-"localhost"}
@@ -75,7 +72,7 @@ if ! dpkg -l | grep -q "mysql-server"; then
 
 	# setup mysql 8.4 package
 	curl -fsSLO http://repo.mysql.com/"${MYSQL_PACKAGE_NAME}"
-	echo "mysql-apt-config mysql-apt-config/repo-codename  select  $DISTRIB_CODENAME" | debconf-set-selections
+	echo "mysql-apt-config mysql-apt-config/repo-codename  select  $MYSQL_CODENAME" | debconf-set-selections
 	echo "mysql-apt-config mysql-apt-config/repo-distro  select  $DIST" | debconf-set-selections
 	echo "mysql-apt-config mysql-apt-config/select-server  select  mysql-8.4-lts" | debconf-set-selections
 	DEBIAN_FRONTEND=noninteractive dpkg -i "${MYSQL_PACKAGE_NAME}"
@@ -86,7 +83,7 @@ if ! dpkg -l | grep -q "mysql-server"; then
 	echo mysql-community-server mysql-server/default-auth-override select "Use Strong Password Encryption (RECOMMENDED)" | debconf-set-selections
 	echo mysql-server mysql-server/root_password password "${MYSQL_SERVER_PASS}" | debconf-set-selections
 	echo mysql-server mysql-server/root_password_again password "${MYSQL_SERVER_PASS}" | debconf-set-selections
-	if [ "$DIST" = "debian" ] && [ "$DISTRIB_CODENAME" = "trixie" ]; then
+	if [ "$DISTRIB_CODENAME" = "trixie" ]; then
 	  echo "deb [arch=amd64] http://deb.debian.org/debian bookworm main" > /etc/apt/sources.list.d/bookworm-temp.list
 	  apt-get update -y
 	  apt-get install -y -t bookworm libaio1
