@@ -104,20 +104,13 @@ if [ "$DIST" = "ubuntu" ]; then
 	chmod 644 /usr/share/keyrings/redis.gpg
 fi
 
-# OpenResty APT key + repo
-install -d -m 0755 /usr/share/keyrings
-if [ ! -f /usr/share/keyrings/openresty.gpg ]; then
-  curl -fsSL https://openresty.org/package/pubkey.gpg | gpg --dearmor --yes -o /usr/share/keyrings/openresty.gpg
-fi
-chmod 644 /usr/share/keyrings/openresty.gpg
+curl -fsSL https://openresty.org/package/pubkey.gpg | gpg --dearmor --yes -o /usr/share/keyrings/openresty.gpg
 
-OR_DIST="$DIST"
-OR_CODENAME="$DISTRIB_CODENAME"
-if [ "$DIST" = "debian" ] && [ "$DISTRIB_CODENAME" = "trixie" ]; then
-  OR_CODENAME="bookworm"
-fi
-echo "deb [signed-by=/usr/share/keyrings/openresty.gpg] http://openresty.org/package/${OR_DIST} ${OR_CODENAME} $([ "$DIST" = "ubuntu" ] && echo "main" || echo "openresty" )" \
-  | tee /etc/apt/sources.list.d/openresty.list >/dev/null
+OPENRESTY_CODENAME=$([ "$DISTRIB_CODENAME" = "trixie" ] && echo "bookworm" || echo "$DISTRIB_CODENAME")
+
+echo "deb [signed-by=/usr/share/keyrings/openresty.gpg] http://openresty.org/package/$DIST ${OPENRESTY_CODENAME} $([ "$DIST" = "ubuntu" ] && echo "main" || echo "openresty" )" \
+  | tee /etc/apt/sources.list.d/openresty.list
+chmod 644 /usr/share/keyrings/openresty.gpg
 
 #add java repo
 curl -fsSL https://packages.adoptium.net/artifactory/api/gpg/key/public | gpg --dearmor | tee /usr/share/keyrings/adoptium.gpg > /dev/null
@@ -160,10 +153,11 @@ JAVA_PATH=$(find /usr/lib/jvm/ -name "java" -path "*temurin-${JAVA_VERSION}*" | 
 update-alternatives --install /usr/bin/java java "$JAVA_PATH" 100 && update-alternatives --set java "$JAVA_PATH"
 
 if [ "${INSTALL_FLUENT_BIT}" == "true" ]; then
-	[[ "$DISTRIB_CODENAME" =~ noble ]] && FLUENTBIT_DIST_CODENAME="jammy" || FLUENTBIT_DIST_CODENAME="${DISTRIB_CODENAME}"
-	if [ "$DIST" = "debian" ] && [ "$DISTRIB_CODENAME" = "trixie" ]; then
-      FLUENTBIT_DIST_CODENAME="bookworm"
-    fi
+	case "$DISTRIB_CODENAME" in
+	  noble)  FLUENTBIT_DIST_CODENAME="jammy" ;;
+	  trixie) FLUENTBIT_DIST_CODENAME="bookworm" ;;
+	  *)      FLUENTBIT_DIST_CODENAME="$DISTRIB_CODENAME" ;;
+	esac
 	curl -fsSL https://packages.fluentbit.io/fluentbit.key | gpg --dearmor > /usr/share/keyrings/fluentbit-keyring.gpg
 	echo "deb [signed-by=/usr/share/keyrings/fluentbit-keyring.gpg] https://packages.fluentbit.io/$DIST/$FLUENTBIT_DIST_CODENAME $FLUENTBIT_DIST_CODENAME main" | tee /etc/apt/sources.list.d/fluent-bit.list
 	apt-get -y update
