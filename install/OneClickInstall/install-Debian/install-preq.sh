@@ -27,10 +27,6 @@ if ! dpkg -l | grep -q "apt-transport-https"; then
 	apt-get install -yq apt-transport-https
 fi
 
-if ! dpkg -l | grep -q "software-properties-common"; then
-	apt-get install -yq software-properties-common
-fi
-
 locale-gen en_US.UTF-8
 
 # add opensearch repo
@@ -57,10 +53,18 @@ elif [ "$DIST" = "debian" ]; then
 	curl -fsSL https://packages.microsoft.com/config/"$DIST"/"$REV"/packages-microsoft-prod.deb -O
 	echo -e "Package: *\nPin: origin \"packages.microsoft.com\"\nPin-Priority: 1002" | tee /etc/apt/preferences.d/99microsoft-prod.pref
 	dpkg -i packages-microsoft-prod.deb && rm packages-microsoft-prod.deb
+		if [ "$DISTRIB_CODENAME" = "trixie" ]; then
+		curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft.gpg
+		echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" | tee /etc/apt/sources.list.d/microsoft-bookworm.list >/dev/null
+	fi
 fi
 
 MYSQL_REPO_VERSION="$(curl -fsSL https://repo.mysql.com | grep -oP 'mysql-apt-config_\K.*' | grep -o '^[^_]*' | sort --version-sort --field-separator=. | tail -n1)"
 MYSQL_PACKAGE_NAME="mysql-apt-config_${MYSQL_REPO_VERSION}_all.deb"
+MYSQL_CODENAME="$DISTRIB_CODENAME"
+if [ "$DIST" = "debian" ] && [ "$DISTRIB_CODENAME" = "trixie" ]; then
+  MYSQL_CODENAME="bookworm"
+fi
 if ! dpkg -l | grep -q "mysql-server"; then
 
 	MYSQL_SERVER_HOST=${MYSQL_SERVER_HOST:-"localhost"}
@@ -71,7 +75,7 @@ if ! dpkg -l | grep -q "mysql-server"; then
 
 	# setup mysql 8.4 package
 	curl -fsSLO http://repo.mysql.com/"${MYSQL_PACKAGE_NAME}"
-	echo "mysql-apt-config mysql-apt-config/repo-codename  select  $DISTRIB_CODENAME" | debconf-set-selections
+	echo "mysql-apt-config mysql-apt-config/repo-codename  select  $MYSQL_CODENAME" | debconf-set-selections
 	echo "mysql-apt-config mysql-apt-config/repo-distro  select  $DIST" | debconf-set-selections
 	echo "mysql-apt-config mysql-apt-config/select-server  select  mysql-8.4-lts" | debconf-set-selections
 	DEBIAN_FRONTEND=noninteractive dpkg -i "${MYSQL_PACKAGE_NAME}"
@@ -82,6 +86,12 @@ if ! dpkg -l | grep -q "mysql-server"; then
 	echo mysql-community-server mysql-server/default-auth-override select "Use Strong Password Encryption (RECOMMENDED)" | debconf-set-selections
 	echo mysql-server mysql-server/root_password password "${MYSQL_SERVER_PASS}" | debconf-set-selections
 	echo mysql-server mysql-server/root_password_again password "${MYSQL_SERVER_PASS}" | debconf-set-selections
+
+	if [ "$DIST" = "debian" ] && [ "$DISTRIB_CODENAME" = "trixie" ]; then
+	echo "deb [arch=amd64] http://deb.debian.org/debian bookworm main" > /etc/apt/sources.list.d/bookworm-temp.list
+	apt-get update -y
+	apt-get install -y -t bookworm libaio1
+	fi
 
 elif dpkg -l | grep -q "mysql-apt-config" && [ "$(apt-cache policy mysql-apt-config | awk 'NR==2{print $2}')" != "${MYSQL_REPO_VERSION}" ]; then
 	curl -fsSLO http://repo.mysql.com/${MYSQL_PACKAGE_NAME}
@@ -95,9 +105,13 @@ if [ "$DIST" = "ubuntu" ]; then
 	chmod 644 /usr/share/keyrings/redis.gpg
 fi
 
-curl -fsSL https://openresty.org/package/pubkey.gpg | gpg --no-default-keyring --keyring gnupg-ring:/usr/share/keyrings/openresty.gpg --import
-echo "deb [signed-by=/usr/share/keyrings/openresty.gpg] http://openresty.org/package/$DIST ${DISTRIB_CODENAME} $([ "$DIST" = "ubuntu" ] && echo "main" || echo "openresty" )" | tee /etc/apt/sources.list.d/openresty.list
 chmod 644 /usr/share/keyrings/openresty.gpg
+OR_DIST="$DIST"
+OR_CODENAME="$DISTRIB_CODENAME"
+if [ "$DIST" = "debian" ] && [ "$DISTRIB_CODENAME" = "trixie" ]; then
+  OR_CODENAME="bookworm"
+fi
+echo "deb [signed-by=/usr/share/keyrings/openresty.gpg] http://openresty.org/package/${OR_DIST} ${OR_CODENAME} $([ "$DIST" = "ubuntu" ] && echo "main" || echo "openresty" )" | tee /etc/apt/sources.list.d/openresty.list
 
 #add java repo
 curl -fsSL https://packages.adoptium.net/artifactory/api/gpg/key/public | gpg --dearmor | tee /usr/share/keyrings/adoptium.gpg > /dev/null
@@ -141,6 +155,9 @@ update-alternatives --install /usr/bin/java java "$JAVA_PATH" 100 && update-alte
 
 if [ "${INSTALL_FLUENT_BIT}" == "true" ]; then
 	[[ "$DISTRIB_CODENAME" =~ noble ]] && FLUENTBIT_DIST_CODENAME="jammy" || FLUENTBIT_DIST_CODENAME="${DISTRIB_CODENAME}"
+		if [ "$DIST" = "debian" ] && [ "$DISTRIB_CODENAME" = "trixie" ]; then
+      FLUENTBIT_DIST_CODENAME="bookworm"
+    fi
 	curl -fsSL https://packages.fluentbit.io/fluentbit.key | gpg --dearmor > /usr/share/keyrings/fluentbit-keyring.gpg
 	echo "deb [signed-by=/usr/share/keyrings/fluentbit-keyring.gpg] https://packages.fluentbit.io/$DIST/$FLUENTBIT_DIST_CODENAME $FLUENTBIT_DIST_CODENAME main" | tee /etc/apt/sources.list.d/fluent-bit.list
 	apt-get -y update
