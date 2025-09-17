@@ -101,7 +101,6 @@ RUN echo "--- installing pnpm ---" && \
     pnpm install && \
     pnpm ${BUILD_ARGS} && \
     pnpm run ${DEPLOY_ARGS} && \
-    node common/scripts/minify-common-locales.js && \
     rm -rf ${SRC_PATH}/client/*
 
 # build plugins
