@@ -61,10 +61,10 @@ fi
 
 MYSQL_REPO_VERSION="$(curl -fsSL https://repo.mysql.com | grep -oP 'mysql-apt-config_\K.*' | grep -o '^[^_]*' | sort --version-sort --field-separator=. | tail -n1)"
 MYSQL_PACKAGE_NAME="mysql-apt-config_${MYSQL_REPO_VERSION}_all.deb"
-MYSQL_CODENAME="$DISTRIB_CODENAME"
-if [ "$DIST" = "debian" ] && [ "$DISTRIB_CODENAME" = "trixie" ]; then
-  MYSQL_CODENAME="bookworm"
-fi
+# MYSQL_CODENAME="$DISTRIB_CODENAME"
+# if [ "$DIST" = "debian" ] && [ "$DISTRIB_CODENAME" = "trixie" ]; then
+#   MYSQL_CODENAME="bookworm"
+# fi
 if ! dpkg -l | grep -q "mysql-server"; then
 
 	MYSQL_SERVER_HOST=${MYSQL_SERVER_HOST:-"localhost"}
@@ -75,7 +75,7 @@ if ! dpkg -l | grep -q "mysql-server"; then
 
 	# setup mysql 8.4 package
 	curl -fsSLO http://repo.mysql.com/"${MYSQL_PACKAGE_NAME}"
-	echo "mysql-apt-config mysql-apt-config/repo-codename  select  $MYSQL_CODENAME" | debconf-set-selections
+	echo "mysql-apt-config mysql-apt-config/repo-codename  select  $DISTRIB_CODENAME" | debconf-set-selections
 	echo "mysql-apt-config mysql-apt-config/repo-distro  select  $DIST" | debconf-set-selections
 	echo "mysql-apt-config mysql-apt-config/select-server  select  mysql-8.4-lts" | debconf-set-selections
 	DEBIAN_FRONTEND=noninteractive dpkg -i "${MYSQL_PACKAGE_NAME}"
