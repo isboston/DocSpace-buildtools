@@ -1,6 +1,11 @@
 name: Install OneClickInstall DocSpace
 
 on:
+  push:
+    branches:
+      - 'release/**'
+      - 'hotfix/**'
+      - 'feature/debian13'
   schedule:
     - cron: "00 20 * * 0"
 
