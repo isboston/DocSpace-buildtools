@@ -46,6 +46,22 @@ fi
 NODE_VERSION="18"
 curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash -
 
+# #add dotnet repo
+# if [ "$DIST" = "ubuntu" ]; then
+#     add-apt-repository -y ppa:dotnet/backports
+# elif [ "$DIST" = "debian" ]; then
+#     if [ "$DISTRIB_CODENAME" = "trixie" ]; then
+#         # curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft.gpg
+#         # echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" | tee /etc/apt/sources.list.d/microsoft-bookworm.list >/dev/null
+# 		curl -fsSL https://packages.microsoft.com/config/debian/12/packages-microsoft-prod.deb -o /tmp/ms.deb
+#         dpkg -i /tmp/ms.deb && rm /tmp/ms.deb
+#     else
+#         curl -fsSL https://packages.microsoft.com/config/"$DIST"/"$REV"/packages-microsoft-prod.deb -O
+#         dpkg -i packages-microsoft-prod.deb && rm packages-microsoft-prod.deb
+#     fi
+#     echo -e "Package: *\nPin: origin \"packages.microsoft.com\"\nPin-Priority: 1002" | tee /etc/apt/preferences.d/99microsoft-prod.pref
+# fi
+
 #add dotnet repo
 if [ "$DIST" = "ubuntu" ]; then
     add-apt-repository -y ppa:dotnet/backports
@@ -84,10 +100,10 @@ if ! dpkg -l | grep -q "mysql-server"; then
 	echo mysql-community-server mysql-server/default-auth-override select "Use Strong Password Encryption (RECOMMENDED)" | debconf-set-selections
 	echo mysql-server mysql-server/root_password password "${MYSQL_SERVER_PASS}" | debconf-set-selections
 	echo mysql-server mysql-server/root_password_again password "${MYSQL_SERVER_PASS}" | debconf-set-selections
-	if [ "$DISTRIB_CODENAME" = "trixie" ]; then
-	  echo "deb [arch=amd64] http://deb.debian.org/debian bookworm main" > /etc/apt/sources.list.d/bookworm-temp.list
-	  apt-get update -y
-	  apt-get install -y -t bookworm libaio1
+
+	if [ "$DISTRIB_CODENAME" = "trixie" ] && ! dpkg -s libaio1 >/dev/null 2>&1; then
+	  curl -fsSLo /tmp/libaio1.deb "https://deb.debian.org/debian/pool/main/liba/libaio/$(
+		curl -fsSL https://deb.debian.org/debian/pool/main/liba/libaio/ | grep -o 'libaio1_[0-9][^"]*_amd64\.deb' | sort -Vu | tail -n1)" && apt-get -y install /tmp/libaio1.deb && rm -f /tmp/libaio1.deb
 	fi
 
 elif dpkg -l | grep -q "mysql-apt-config" && [ "$(apt-cache policy mysql-apt-config | awk 'NR==2{print $2}')" != "${MYSQL_REPO_VERSION}" ]; then
@@ -148,11 +164,7 @@ JAVA_PATH=$(find /usr/lib/jvm/ -name "java" -path "*temurin-${JAVA_VERSION}*" | 
 update-alternatives --install /usr/bin/java java "$JAVA_PATH" 100 && update-alternatives --set java "$JAVA_PATH"
 
 if [ "${INSTALL_FLUENT_BIT}" == "true" ]; then
-	case "$DISTRIB_CODENAME" in
-	  noble)  FLUENTBIT_DIST_CODENAME="jammy" ;;
-	  trixie) FLUENTBIT_DIST_CODENAME="bookworm" ;;
-	  *)      FLUENTBIT_DIST_CODENAME="$DISTRIB_CODENAME" ;;
-	esac
+	[[ "$DISTRIB_CODENAME" == trixie ]] && FLUENTBIT_DIST_CODENAME="bookworm" || FLUENTBIT_DIST_CODENAME="${DISTRIB_CODENAME}"
 	curl -fsSL https://packages.fluentbit.io/fluentbit.key | gpg --dearmor > /usr/share/keyrings/fluentbit-keyring.gpg
 	echo "deb [signed-by=/usr/share/keyrings/fluentbit-keyring.gpg] https://packages.fluentbit.io/$DIST/$FLUENTBIT_DIST_CODENAME $FLUENTBIT_DIST_CODENAME main" | tee /etc/apt/sources.list.d/fluent-bit.list
 	apt-get -y update
