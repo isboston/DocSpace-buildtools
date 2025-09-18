@@ -76,6 +76,19 @@ curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash -
 #     echo -e "Package: *\nPin: origin \"packages.microsoft.com\"\nPin-Priority: 1002" | tee /etc/apt/preferences.d/99microsoft-prod.pref
 # fi
 
+
+#add dotnet repo
+if [ "$DIST" = "ubuntu" ]; then
+    add-apt-repository -y ppa:dotnet/backports
+elif [ "$DIST" = "debian" ]; then
+    MS_REV="$REV"
+    # Temporary workaround Debian 13 (trixie) use Microsoft repo from Debian 12
+    [ "${DISTRIB_CODENAME:-}" = "trixie" ] && MS_REV="12"
+	curl -fsSL https://packages.microsoft.com/config/"$DIST"/"$MS_REV"/packages-microsoft-prod.deb -O
+	echo -e "Package: *\nPin: origin \"packages.microsoft.com\"\nPin-Priority: 1002" | tee /etc/apt/preferences.d/99microsoft-prod.pref
+	dpkg -i packages-microsoft-prod.deb && rm packages-microsoft-prod.deb
+fi
+
 MYSQL_REPO_VERSION="$(curl -fsSL https://repo.mysql.com | grep -oP 'mysql-apt-config_\K.*' | grep -o '^[^_]*' | sort --version-sort --field-separator=. | tail -n1)"
 MYSQL_PACKAGE_NAME="mysql-apt-config_${MYSQL_REPO_VERSION}_all.deb"
 MYSQL_CODENAME=$([ "$DISTRIB_CODENAME" = "trixie" ] && echo "bookworm" || echo "$DISTRIB_CODENAME")
