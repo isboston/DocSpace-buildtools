@@ -148,11 +148,7 @@ JAVA_PATH=$(find /usr/lib/jvm/ -name "java" -path "*temurin-${JAVA_VERSION}*" | 
 update-alternatives --install /usr/bin/java java "$JAVA_PATH" 100 && update-alternatives --set java "$JAVA_PATH"
 
 if [ "${INSTALL_FLUENT_BIT}" == "true" ]; then
-	case "$DISTRIB_CODENAME" in
-	  noble)  FLUENTBIT_DIST_CODENAME="jammy" ;;
-	  trixie) FLUENTBIT_DIST_CODENAME="bookworm" ;;
-	  *)      FLUENTBIT_DIST_CODENAME="$DISTRIB_CODENAME" ;;
-	esac
+	[[ "$DISTRIB_CODENAME" == trixie ]] && FLUENTBIT_DIST_CODENAME="bookworm" || FLUENTBIT_DIST_CODENAME="${DISTRIB_CODENAME}"
 	curl -fsSL https://packages.fluentbit.io/fluentbit.key | gpg --dearmor > /usr/share/keyrings/fluentbit-keyring.gpg
 	echo "deb [signed-by=/usr/share/keyrings/fluentbit-keyring.gpg] https://packages.fluentbit.io/$DIST/$FLUENTBIT_DIST_CODENAME $FLUENTBIT_DIST_CODENAME main" | tee /etc/apt/sources.list.d/fluent-bit.list
 	apt-get -y update
