@@ -85,10 +85,6 @@ if ! dpkg -l | grep -q "mysql-server"; then
 	echo mysql-server mysql-server/root_password password "${MYSQL_SERVER_PASS}" | debconf-set-selections
 	echo mysql-server mysql-server/root_password_again password "${MYSQL_SERVER_PASS}" | debconf-set-selections
 
-	# if [ "$DISTRIB_CODENAME" = "trixie" ] && ! dpkg -s libaio1 >/dev/null 2>&1; then
-	#   curl -fsSL https://deb.debian.org/debian/pool/main/liba/libaio/ | grep -o 'libaio1_[0-9][^"]*_amd64\.deb' | sort -Vu | tail -n1 | xargs -I{} sh -c 'curl -fsSLo "/tmp/{}" "https://deb.debian.org/debian/pool/main/liba/libaio/{}" && apt-get install -y "/tmp/{}" && rm -f "/tmp/{}"'
-	# fi
-
 	if [ "$DISTRIB_CODENAME" = "trixie" ] && ! dpkg -s libaio1 >/dev/null 2>&1; then
 	  curl -fsSLo /tmp/libaio1.deb "https://deb.debian.org/debian/pool/main/liba/libaio/$(
 		curl -fsSL https://deb.debian.org/debian/pool/main/liba/libaio/ | grep -o 'libaio1_[0-9][^"]*_amd64\.deb' | sort -Vu | tail -n1)" && apt-get -y install /tmp/libaio1.deb && rm -f /tmp/libaio1.deb
