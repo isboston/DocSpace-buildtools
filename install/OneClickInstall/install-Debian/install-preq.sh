@@ -84,11 +84,11 @@ if ! dpkg -l | grep -q "mysql-server"; then
 	echo mysql-community-server mysql-server/default-auth-override select "Use Strong Password Encryption (RECOMMENDED)" | debconf-set-selections
 	echo mysql-server mysql-server/root_password password "${MYSQL_SERVER_PASS}" | debconf-set-selections
 	echo mysql-server mysql-server/root_password_again password "${MYSQL_SERVER_PASS}" | debconf-set-selections
-	if [ "$DISTRIB_CODENAME" = "trixie" ]; then
-	  echo "deb [arch=amd64] http://deb.debian.org/debian bookworm main" > /etc/apt/sources.list.d/bookworm-temp.list
-	  apt-get update -y
-	  apt-get install -y -t bookworm libaio1
-	fi
+	# if [ "$DISTRIB_CODENAME" = "trixie" ]; then
+	#   echo "deb [arch=amd64] http://deb.debian.org/debian bookworm main" > /etc/apt/sources.list.d/bookworm-temp.list
+	#   apt-get update -y
+	#   apt-get install -y -t bookworm libaio1
+	# fi
 
 elif dpkg -l | grep -q "mysql-apt-config" && [ "$(apt-cache policy mysql-apt-config | awk 'NR==2{print $2}')" != "${MYSQL_REPO_VERSION}" ]; then
 	curl -fsSLO http://repo.mysql.com/${MYSQL_PACKAGE_NAME}
