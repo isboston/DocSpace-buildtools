@@ -62,19 +62,19 @@ curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash -
 #     echo -e "Package: *\nPin: origin \"packages.microsoft.com\"\nPin-Priority: 1002" | tee /etc/apt/preferences.d/99microsoft-prod.pref
 # fi
 
-#add dotnet repo
-if [ "$DIST" = "ubuntu" ]; then
-    add-apt-repository -y ppa:dotnet/backports
-elif [ "$DIST" = "debian" ]; then
-    if [ "$DISTRIB_CODENAME" = "trixie" ]; then
-        curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft.gpg
-        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/debian/13/prod trixie main" | tee /etc/apt/sources.list.d/microsoft-trixie.list >/dev/null
-    else
-        curl -fsSL https://packages.microsoft.com/config/"$DIST"/"$REV"/packages-microsoft-prod.deb -O
-        dpkg -i packages-microsoft-prod.deb && rm packages-microsoft-prod.deb
-    fi
-    echo -e "Package: *\nPin: origin \"packages.microsoft.com\"\nPin-Priority: 1002" | tee /etc/apt/preferences.d/99microsoft-prod.pref
-fi
+# #add dotnet repo
+# if [ "$DIST" = "ubuntu" ]; then
+#     add-apt-repository -y ppa:dotnet/backports
+# elif [ "$DIST" = "debian" ]; then
+#     if [ "$DISTRIB_CODENAME" = "trixie" ]; then
+#         curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft.gpg
+#         echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/debian/13/prod trixie main" | tee /etc/apt/sources.list.d/microsoft-trixie.list >/dev/null
+#     else
+#         curl -fsSL https://packages.microsoft.com/config/"$DIST"/"$REV"/packages-microsoft-prod.deb -O
+#         dpkg -i packages-microsoft-prod.deb && rm packages-microsoft-prod.deb
+#     fi
+#     echo -e "Package: *\nPin: origin \"packages.microsoft.com\"\nPin-Priority: 1002" | tee /etc/apt/preferences.d/99microsoft-prod.pref
+# fi
 
 MYSQL_REPO_VERSION="$(curl -fsSL https://repo.mysql.com | grep -oP 'mysql-apt-config_\K.*' | grep -o '^[^_]*' | sort --version-sort --field-separator=. | tail -n1)"
 MYSQL_PACKAGE_NAME="mysql-apt-config_${MYSQL_REPO_VERSION}_all.deb"
