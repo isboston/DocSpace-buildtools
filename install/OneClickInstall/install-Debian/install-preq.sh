@@ -66,7 +66,6 @@ MYSQL_CODENAME=$([ "$DISTRIB_CODENAME" = "trixie" ] && echo "bookworm" || echo "
 if ! dpkg -l | grep -q "mysql-server"; then
 
 	MYSQL_SERVER_HOST=${MYSQL_SERVER_HOST:-"localhost"}
-	MYSQL_SERVER_PORT=${MYSQL_SERVER_PORT:-"3306"}
 	MYSQL_SERVER_DB_NAME=${MYSQL_SERVER_DB_NAME:-"${package_sysname}"}
 	MYSQL_SERVER_USER=${MYSQL_SERVER_USER:-"root"}
 	MYSQL_SERVER_PASS=${MYSQL_SERVER_PASS:-"$(cat /dev/urandom | tr -dc A-Za-z0-9 | head -c 12)"}
