@@ -1,60 +1,79 @@
 name: Update OneClickInstall DocSpace
-
-run-name: >
-  Update DocSpace from older versions
+run-name: Update DocSpace from older versions
 
 on:
   schedule:
     - cron: '00 20 * * 0'
-
   workflow_dispatch:
     inputs:
       rhel9:
-         type: boolean
-         description: 'RHEL9'
-         default: true
+        type: boolean
+        description: 'RHEL9'
+        default: true
       centos9s:
-         type: boolean
-         description: 'CentOS 9 Stream'
-         default: true
+        type: boolean
+        description: 'CentOS 9 Stream'
+        default: true
       debian13:
-         type: boolean
-         description: 'Debian 13'
-         default: true
+        type: boolean
+        description: 'Debian 13'
+        default: true
       debian12:
-         type: boolean
-         description: 'Debian 12'
-         default: true
+        type: boolean
+        description: 'Debian 12'
+        default: true
       debian11:
-         type: boolean
-         description: 'Debian 11'
-         default: true
+        type: boolean
+        description: 'Debian 11'
+        default: true
       ubuntu2204:
-         type: boolean
-         description: 'Ubuntu 22.04'
-         default: true
+        type: boolean
+        description: 'Ubuntu 22.04'
+        default: true
       ubuntu2404:
-         type: boolean
-         description: 'Ubuntu 24.04'
-         default: true
+        type: boolean
+        description: 'Ubuntu 24.04'
+        default: true
 
 jobs:
+  # Новый job: выбираем целевую ветку как в примере
+  select-branch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      branch: ${{ steps.selected.outputs.branch }}
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Select latest version branch
+        id: selected
+        run: |
+          latest_branch=$(gh api repos/${GITHUB_REPOSITORY}/branches \
+            --jq '.[] | select(.name | test("^(release|hotfix)/v[0-9]+\\.[0-9]+\\.[0-9]+$")) | .name' \
+            | awk -F/ '{ ver=substr($2,2); print ver " " $0 }' \
+            | sort -t. -k1,1n -k2,2n -k3,3n \
+            | tail -n1 \
+            | cut -d' ' -f2)
+          latest_branch=${latest_branch:-develop}
+          echo "branch=$latest_branch" >> "$GITHUB_OUTPUT"
+
   prepare:
     runs-on: ubuntu-22.04
+    needs: select-branch
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-
       - name: Set matrix names
         id: set-matrix
         run: |
           matrix=$(echo '{
             "include": [
-              {"execute": '${{ github.event.inputs.rhel9 || true }}', "name": "RHEL9", "os": "rhel9", "distr": "onlyoffice"},
-              {"execute": '${{ github.event.inputs.centos9s || true }}', "name": "CentOS9S", "os": "centos9s", "distr": "onlyoffice"},
-              {"execute": '${{ github.event.inputs.debian11 || true }}', "name": "Debian11", "os": "debian11", "distr": "onlyoffice"},
-              {"execute": '${{ github.event.inputs.debian12 || true }}', "name": "Debian12", "os": "debian12", "distr": "onlyoffice"},
-              {"execute": '${{ github.event.inputs.debian13 || true }}', "name": "Debian13", "os": "debian13", "distr": "onlyoffice"},
+              {"execute": '${{ github.event.inputs.rhel9    || true }}', "name": "RHEL9",     "os": "rhel9",     "distr": "onlyoffice"},
+              {"execute": '${{ github.event.inputs.centos9s || true }}', "name": "CentOS9S",  "os": "centos9s",  "distr": "onlyoffice"},
+              {"execute": '${{ github.event.inputs.debian11 || true }}', "name": "Debian11",  "os": "debian11",  "distr": "onlyoffice"},
+              {"execute": '${{ github.event.inputs.debian12 || true }}', "name": "Debian12",  "os": "debian12",  "distr": "onlyoffice"},
+              {"execute": '${{ github.event.inputs.debian13 || true }}', "name": "Debian13",  "os": "debian13",  "distr": "onlyoffice"},
               {"execute": '${{ github.event.inputs.ubuntu2204 || true }}', "name": "Ubuntu22.04", "os": "ubuntu2204", "distr": "onlyoffice"},
               {"execute": '${{ github.event.inputs.ubuntu2404 || true }}', "name": "Ubuntu24.04", "os": "ubuntu2404", "distr": "onlyoffice"}
             ]
@@ -62,16 +81,19 @@ jobs:
           echo "matrix=${matrix}" >> $GITHUB_OUTPUT
 
   update-boxes:
-    name: "Update DocSpace on ${{ matrix.name}}"
+    name: "Update DocSpace on ${{ matrix.name }}"
     runs-on: ubuntu-22.04
-    needs: prepare
+    needs: [select-branch, prepare]
     strategy:
       fail-fast: false
-      matrix: ${{fromJSON(needs.prepare.outputs.matrix)}}
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
 
     steps:
-      - name: Checkout code
+      - name: Checkout code (selected branch)
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.select-branch.outputs.branch }}
+          fetch-depth: 0
 
       - name: Free Disk Space
         run: |
@@ -81,14 +103,19 @@ jobs:
       - name: Get update and install vagrant
         run: |
           set -eux
-          gpg --keyserver keyserver.ubuntu.com --recv-keys A2F683C52980AECF && gpg --export A2F683C52980AECF > /usr/share/keyrings/virtualbox.gpg
-          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/virtualbox.gpg] https://download.virtualbox.org/virtualbox/debian $(. /etc/os-release && echo $UBUNTU_CODENAME) contrib" | sudo tee /etc/apt/sources.list.d/virtualbox.list
-          sudo wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
-          sudo echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(grep -oP '(?<=UBUNTU_CODENAME=).*' /etc/os-release || lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
-          sudo apt update -y
-          sudo apt install vagrant virtualbox-7.0 -y
+          # VirtualBox repo key
+          gpg --keyserver keyserver.ubuntu.com --recv-keys A2F683C52980AECF
+          gpg --export A2F683C52980AECF | sudo tee /usr/share/keyrings/virtualbox.gpg >/dev/null
+          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/virtualbox.gpg] https://download.virtualbox.org/virtualbox/debian $(. /etc/os-release && echo $UBUNTU_CODENAME) contrib" | sudo tee /etc/apt/sources.list.d/virtualbox.list >/dev/null
 
-      - name: Testing with update ${{matrix.name}}
+          # HashiCorp repo key
+          wget -qO- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(grep -oP '(?<=UBUNTU_CODENAME=).*' /etc/os-release || lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list >/dev/null
+
+          sudo apt update -y
+          sudo apt install -y vagrant virtualbox-7.0
+
+      - name: Testing with update ${{ matrix.name }}
         if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
         uses: nick-fields/retry@v3
         with:
@@ -96,21 +123,21 @@ jobs:
           timeout_minutes: 60
           retry_on: error
           command: |
-                set -eux
-                cd tests/vagrant
-                TEST_CASE='--local-install' \
-                DISTR='${{ matrix.distr }}' \
-                OS='docspace-${{ matrix.os }}' \
-                RAM='8192' \
-                CPU='3' \
-                DOWNLOAD_SCRIPT='-ds false' \
-                TEST_REPO='-tr true' \
-                ARGUMENTS="-arg '--skiphardwarecheck true --makeswap false --localscripts true --update true'" \
-                vagrant up --provider=virtualbox
-                sleep 10
-                vagrant destroy --force
+            set -eux
+            cd tests/vagrant
+            TEST_CASE='--local-install' \
+            DISTR='${{ matrix.distr }}' \
+            OS='docspace-${{ matrix.os }}' \
+            RAM='8192' \
+            CPU='3' \
+            DOWNLOAD_SCRIPT='-ds false' \
+            TEST_REPO='-tr true' \
+            ARGUMENTS="-arg '--skiphardwarecheck true --makeswap false --localscripts true --update true'" \
+            vagrant up --provider=virtualbox
+            sleep 10
+            vagrant destroy --force
           on_retry_command: |
-              set -eux
-              echo "Clean-up and one more try"
-              cd ./tests/vagrant
-              vagrant destroy --force
+            set -eux
+            echo "Clean-up and one more try"
+            cd ./tests/vagrant
+            vagrant destroy --force
