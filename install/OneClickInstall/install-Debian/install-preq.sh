@@ -46,44 +46,13 @@ fi
 NODE_VERSION="18"
 curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash -
 
-# #add dotnet repo
-# if [ "$DIST" = "ubuntu" ]; then
-#     add-apt-repository -y ppa:dotnet/backports
-# elif [ "$DIST" = "debian" ]; then
-#     if [ "$DISTRIB_CODENAME" = "trixie" ]; then
-#         # curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft.gpg
-#         # echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" | tee /etc/apt/sources.list.d/microsoft-bookworm.list >/dev/null
-# 		curl -fsSL https://packages.microsoft.com/config/debian/12/packages-microsoft-prod.deb -o /tmp/ms.deb
-#         dpkg -i /tmp/ms.deb && rm /tmp/ms.deb
-#     else
-#         curl -fsSL https://packages.microsoft.com/config/"$DIST"/"$REV"/packages-microsoft-prod.deb -O
-#         dpkg -i packages-microsoft-prod.deb && rm packages-microsoft-prod.deb
-#     fi
-#     echo -e "Package: *\nPin: origin \"packages.microsoft.com\"\nPin-Priority: 1002" | tee /etc/apt/preferences.d/99microsoft-prod.pref
-# fi
-
-# #add dotnet repo
-# if [ "$DIST" = "ubuntu" ]; then
-#     add-apt-repository -y ppa:dotnet/backports
-# elif [ "$DIST" = "debian" ]; then
-#     if [ "$DISTRIB_CODENAME" = "trixie" ]; then
-#         curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft.gpg
-#         echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/debian/13/prod trixie main" | tee /etc/apt/sources.list.d/microsoft-trixie.list >/dev/null
-#     else
-#         curl -fsSL https://packages.microsoft.com/config/"$DIST"/"$REV"/packages-microsoft-prod.deb -O
-#         dpkg -i packages-microsoft-prod.deb && rm packages-microsoft-prod.deb
-#     fi
-#     echo -e "Package: *\nPin: origin \"packages.microsoft.com\"\nPin-Priority: 1002" | tee /etc/apt/preferences.d/99microsoft-prod.pref
-# fi
-
-
 #add dotnet repo
 if [ "$DIST" = "ubuntu" ]; then
     add-apt-repository -y ppa:dotnet/backports
 elif [ "$DIST" = "debian" ]; then
-    MS_REV="$REV"
-    # Temporary workaround Debian 13 (trixie) use Microsoft repo from Debian 12
-    [ "${DISTRIB_CODENAME:-}" = "trixie" ] && MS_REV="12"
+	# Temporary workaround Debian 13 (trixie) use Microsoft repo from Debian 12
+	MS_REV="$REV"
+	[ "${DISTRIB_CODENAME}" = "trixie" ] && MS_REV="12"
 	curl -fsSL https://packages.microsoft.com/config/"$DIST"/"$MS_REV"/packages-microsoft-prod.deb -O
 	echo -e "Package: *\nPin: origin \"packages.microsoft.com\"\nPin-Priority: 1002" | tee /etc/apt/preferences.d/99microsoft-prod.pref
 	dpkg -i packages-microsoft-prod.deb && rm packages-microsoft-prod.deb
@@ -91,7 +60,7 @@ fi
 
 MYSQL_REPO_VERSION="$(curl -fsSL https://repo.mysql.com | grep -oP 'mysql-apt-config_\K.*' | grep -o '^[^_]*' | sort --version-sort --field-separator=. | tail -n1)"
 MYSQL_PACKAGE_NAME="mysql-apt-config_${MYSQL_REPO_VERSION}_all.deb"
-MYSQL_CODENAME=$([ "$DISTRIB_CODENAME" = "trixie" ] && echo "bookworm" || echo "$DISTRIB_CODENAME")
+MYSQL_CODENAME=$([ "${DISTRIB_CODENAME}" = "trixie" ] && echo "bookworm" || echo "${DISTRIB_CODENAME}")
 if ! dpkg -l | grep -q "mysql-server"; then
 
 	MYSQL_SERVER_HOST=${MYSQL_SERVER_HOST:-"localhost"}
@@ -114,10 +83,11 @@ if ! dpkg -l | grep -q "mysql-server"; then
 	echo mysql-server mysql-server/root_password password "${MYSQL_SERVER_PASS}" | debconf-set-selections
 	echo mysql-server mysql-server/root_password_again password "${MYSQL_SERVER_PASS}" | debconf-set-selections
 
-	if [ "$DISTRIB_CODENAME" = "trixie" ] && ! dpkg -s libaio1 >/dev/null 2>&1; then
-	  curl -fsSLo /tmp/libaio1.deb "https://deb.debian.org/debian/pool/main/liba/libaio/$(
-		curl -fsSL https://deb.debian.org/debian/pool/main/liba/libaio/ | grep -o 'libaio1_[0-9][^"]*_amd64\.deb' | sort -Vu | tail -n1)" && apt-get -y install /tmp/libaio1.deb && rm -f /tmp/libaio1.deb
-	fi
+    # Temporary workaround Debian 13 (trixie) MySQL requires libaio1
+    if [ "$DISTRIB_CODENAME" = "trixie" ] && ! dpkg -s libaio1 >/dev/null 2>&1; then
+      curl -fsSLo /tmp/libaio1.deb "https://deb.debian.org/debian/pool/main/liba/libaio/$(
+        curl -fsSL https://deb.debian.org/debian/pool/main/liba/libaio/ | grep -o 'libaio1_[0-9][^"]*_amd64\.deb' | sort -Vu | tail -n1)" && apt-get -y install /tmp/libaio1.deb && rm -f /tmp/libaio1.deb
+    fi
 
 elif dpkg -l | grep -q "mysql-apt-config" && [ "$(apt-cache policy mysql-apt-config | awk 'NR==2{print $2}')" != "${MYSQL_REPO_VERSION}" ]; then
 	curl -fsSLO http://repo.mysql.com/${MYSQL_PACKAGE_NAME}
@@ -132,7 +102,8 @@ if [ "$DIST" = "ubuntu" ]; then
 fi
 
 curl -fsSL https://openresty.org/package/pubkey.gpg | gpg --no-default-keyring --keyring gnupg-ring:/usr/share/keyrings/openresty.gpg --import
-OPENRESTY_CODENAME=$([ "$DISTRIB_CODENAME" = "trixie" ] && echo "bookworm" || echo "$DISTRIB_CODENAME")
+# Temporary workaround Debian 13 (trixie) use bookworm codename for OpenResty
+OPENRESTY_CODENAME=$([ "${DISTRIB_CODENAME}" = "trixie" ] && echo "bookworm" || echo "${DISTRIB_CODENAME}")
 echo "deb [signed-by=/usr/share/keyrings/openresty.gpg] http://openresty.org/package/$DIST ${OPENRESTY_CODENAME} $([ "$DIST" = "ubuntu" ] && echo "main" || echo "openresty" )" | tee /etc/apt/sources.list.d/openresty.list
 chmod 644 /usr/share/keyrings/openresty.gpg
 
@@ -177,7 +148,7 @@ JAVA_PATH=$(find /usr/lib/jvm/ -name "java" -path "*temurin-${JAVA_VERSION}*" | 
 update-alternatives --install /usr/bin/java java "$JAVA_PATH" 100 && update-alternatives --set java "$JAVA_PATH"
 
 if [ "${INSTALL_FLUENT_BIT}" == "true" ]; then
-	[[ "$DISTRIB_CODENAME" == trixie ]] && FLUENTBIT_DIST_CODENAME="bookworm" || FLUENTBIT_DIST_CODENAME="${DISTRIB_CODENAME}"
+	[[ "${DISTRIB_CODENAME}" == trixie ]] && FLUENTBIT_DIST_CODENAME="bookworm" || FLUENTBIT_DIST_CODENAME="${DISTRIB_CODENAME}"
 	curl -fsSL https://packages.fluentbit.io/fluentbit.key | gpg --dearmor > /usr/share/keyrings/fluentbit-keyring.gpg
 	echo "deb [signed-by=/usr/share/keyrings/fluentbit-keyring.gpg] https://packages.fluentbit.io/$DIST/$FLUENTBIT_DIST_CODENAME $FLUENTBIT_DIST_CODENAME main" | tee /etc/apt/sources.list.d/fluent-bit.list
 	apt-get -y update
