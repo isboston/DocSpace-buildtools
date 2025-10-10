@@ -33,8 +33,8 @@ if [ "$DIST" = "redhat" ]; then
 fi
 
 #add rabbitmq & erlang repo
-curl -fsSL https://packagecloud.io/install/repositories/rabbitmq/rabbitmq-server/script.rpm.sh | bash
-curl -fsSL https://packagecloud.io/install/repositories/rabbitmq/erlang/script.rpm.sh | bash
+curl -s https://packagecloud.io/install/repositories/rabbitmq/rabbitmq-server/script.rpm.sh | os=${RABBIT_DIST_NAME} dist="${RABBIT_DIST_VER}" bash
+curl -s https://packagecloud.io/install/repositories/rabbitmq/erlang/script.rpm.sh | os="${ERLANG_DIST_NAME}" dist="${ERLANG_DIST_VER}" bash
 
 #add nodejs repo
 NODE_VERSION="18"
@@ -90,7 +90,7 @@ ${package_manager} ${WEAK_OPT} -y install $([ "$DIST" != "fedora" ] && echo "epe
 			postgresql \
 			postgresql-server \
 			rabbitmq-server \
-			redis \
+			${REDIS_PACKAGE} \
 			SDL2 \
 			expect \
 			java-${JAVA_VERSION}-openjdk-headless \
@@ -121,5 +121,5 @@ fi
 
 semanage permissive -a httpd_t
 
-package_services="rabbitmq-server postgresql redis mysqld"
+package_services="rabbitmq-server postgresql ${REDIS_PACKAGE} mysqld"
 rpm -q valkey &>/dev/null && package_services="${package_services//redis/valkey}" || true # https://fedoraproject.org/wiki/Changes/Replace_Redis_With_Valkey 

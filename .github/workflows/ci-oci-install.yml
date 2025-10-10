@@ -15,7 +15,7 @@ on:
           ubuntu2204,
           ubuntu2404,
           rhel9,
-          centos9s,
+          centos10s,
           fedora41,
           fedora42
       deb_build:
@@ -39,7 +39,7 @@ jobs:
           OS_MAP: |
             {
               "rhel9":      ["RHEL 9",       "generic",      "rhel9"],
-              "centos9s":   ["CentOS 9s",    "onlyoffice",   "base-centos9s"],
+              "centos10s":  ["CentOS 10s",   "onlyoffice",   "base-centos10s"],
               "debian11":   ["Debian 11",    "onlyoffice",   "base-debian11"],
               "debian12":   ["Debian 12",    "onlyoffice",   "base-debian12"],
               "debian13":   ["Debian 13",    "onlyoffice",   "base-debian13"],
@@ -143,7 +143,7 @@ jobs:
             RAM='8192' \
             CPU='3' \
             DOWNLOAD_SCRIPT='-ds false' \
-            TEST_REPO='-tr true' \
+            TEST_REPO='-tr false' \
             ARGUMENTS="-arg '--skiphardwarecheck true --localscripts true'" \
             vagrant up --provider=virtualbox
           on_retry_command: |
