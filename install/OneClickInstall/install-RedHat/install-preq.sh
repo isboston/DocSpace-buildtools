@@ -98,7 +98,7 @@ ${package_manager} ${WEAK_OPT} -y install $([ "$DIST" != "fedora" ] && echo "epe
 			SDL2 \
 			expect \
 			java-${JAVA_VERSION}-openjdk-headless \
-			--enablerepo=opensearch-2.x
+			--enablerepo=opensearch-2.x --nogpgcheck
 
 # Set Java ${JAVA_VERSION} as the default version
 JAVA_PATH=$(find /usr/lib/jvm/ -name "java" -path "*java-${JAVA_VERSION}*" | head -1)
