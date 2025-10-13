@@ -75,17 +75,12 @@ module_hotfixes=true
 END
 fi
 
-rpm --import https://openresty.org/package/pubkey.gpg
-OPENRESTY_REPO_FILE=$( [[ "$REV" -ge 9 && "$DIST" != "fedora" ]] && echo "openresty2.repo" || echo "openresty.repo" )
-curl -fsSL -o /etc/yum.repos.d/openresty.repo "https://openresty.org/package/${OPENRESTY_DISTR_NAME}/${OPENRESTY_REPO_FILE}"
-if [ "$DIST" != "fedora" ] && [ "$REV" -ge 10 ]; then
-  # меняем $releasever → 9, чтобы не было 404 на centos/10/...
-  sed -i 's|/centos/\$releasever/|/centos/9/|g' /etc/yum.repos.d/openresty.repo
-
-  # на всякий: включаем и hotfix-модули, чтобы dnf не конфликтовал
-  sed -i 's/^enabled=.*/enabled=1/' /etc/yum.repos.d/openresty.repo
-  grep -q '^module_hotfixes=' /etc/yum.repos.d/openresty.repo || echo 'module_hotfixes=true' >> /etc/yum.repos.d/openresty.repo
-fi
+# rpm --import https://openresty.org/package/pubkey.gpg
+# OPENRESTY_REPO_FILE=$( [[ "$REV" -ge 9 && "$DIST" != "fedora" ]] && echo "openresty2.repo" || echo "openresty.repo" )
+# curl -fsSL -o /etc/yum.repos.d/openresty.repo "https://openresty.org/package/${OPENRESTY_DISTR_NAME}/${OPENRESTY_REPO_FILE}"
+# if [ "$DIST" != "fedora" ] && [ "$REV" -ge 10 ]; then
+#   sed -i 's|/centos/\$releasever/|/centos/9/|g' /etc/yum.repos.d/openresty.repo
+# fi
 
 JAVA_VERSION=21
 ${package_manager} ${WEAK_OPT} -y install $([ "$DIST" != "fedora" ] && echo "epel-release") \
