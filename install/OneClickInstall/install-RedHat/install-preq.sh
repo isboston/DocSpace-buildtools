@@ -25,7 +25,7 @@ fi
 #Add repository EPEL
 EPEL_URL="https://dl.fedoraproject.org/pub/epel/"
 [ "$DIST" != "fedora" ] && { rpm -ivh ${EPEL_URL}/epel-release-latest-$REV.noarch.rpm || true; }
-[ "$REV" = "10" ] && update-crypto-policies --set DEFAULT:SHA1 && ${package_manager} -y install xorg-x11-font-utils
+[ "$REV" = "9" ] && [ "$DIST" = "centos" ] && TESTING_REPO="--enablerepo=crb"
 [ "$DIST" = "centos" ] && TESTING_REPO="--enablerepo=$( [ "$REV" = "9" ] && echo "crb" || echo "powertools" )"
 if [ "$DIST" = "redhat" ]; then 
 	LADSPA_PACKAGE_VERSION=$(curl -fsSL "${EPEL_URL}/10/Everything/x86_64/Packages/l/" | grep -oP 'ladspa-[0-9].*?\.rpm' | sort -V | tail -n 1)
