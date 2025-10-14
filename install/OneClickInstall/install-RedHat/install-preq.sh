@@ -100,10 +100,22 @@ ${package_manager} ${WEAK_OPT} -y install $([ "$DIST" != "fedora" ] && echo "epe
 JAVA_PATH=$(find /usr/lib/jvm/ -name "java" -path "*java-${JAVA_VERSION}*" | head -1)
 alternatives --install /usr/bin/java java "$JAVA_PATH" 100 && alternatives --set java "$JAVA_PATH"
 
+# #add repo, install fluent-bit
+# if [ "${INSTALL_FLUENT_BIT}" == "true" ]; then 
+# 	[ "$DIST" != "fedora" ] && curl -fsSL https://raw.githubusercontent.com/fluent/fluent-bit/master/install.sh | bash || yum -y install fluent-bit
+# 	${package_manager} -y install opensearch-dashboards-"${DASHBOARDS_VERSION}" --enablerepo=opensearch-dashboards-2.x --nogpgcheck
+# fi
+
 #add repo, install fluent-bit
-if [ "${INSTALL_FLUENT_BIT}" == "true" ]; then 
-	[ "$DIST" != "fedora" ] && curl -fsSL https://raw.githubusercontent.com/fluent/fluent-bit/master/install.sh | bash || yum -y install fluent-bit
-	${package_manager} -y install opensearch-dashboards-"${DASHBOARDS_VERSION}" --enablerepo=opensearch-dashboards-2.x --nogpgcheck
+if [ ${INSTALL_FLUENT_BIT} == "true" ]; then 
+	[ "$DIST" != "fedora" ] && {
+		if [ "$REV" = "10" ]; then
+			curl https://raw.githubusercontent.com/fluent/fluent-bit/master/install.sh | sed 's/\\$releasever/9/' | bash
+		else
+			curl https://raw.githubusercontent.com/fluent/fluent-bit/master/install.sh | bash
+		fi
+	} || yum -y install fluent-bit
+	${package_manager} -y install opensearch-dashboards-${DASHBOARDS_VERSION} --enablerepo=opensearch-dashboards-2.x --nogpgcheck
 fi
 
 if [[ $PSQLExitCode -eq $UPDATE_AVAILABLE_CODE ]]; then
