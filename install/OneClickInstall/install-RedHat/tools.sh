@@ -83,6 +83,7 @@ fi
 if [ "$DIST" == "fedora" ]; then
 	REMI_DISTR_NAME="fedora"
 	RPMFUSION_DISTR_NAME="fedora"
+	RABBIT_DIST_NAME="fedora"
 	MYSQL_DISTR_NAME="fc"
 	OPENRESTY_REV=$([ "$REV" -ge 37 ] && echo 36 || echo "$REV")
 
