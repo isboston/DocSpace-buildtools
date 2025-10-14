@@ -133,5 +133,8 @@ fi
 
 semanage permissive -a httpd_t
 
+sudo systemctl disable --now cockpit.socket
+sudo systemctl stop cockpit.service || true
+
 package_services="rabbitmq-server postgresql ${REDIS_PACKAGE} mysqld"
 rpm -q valkey &>/dev/null && package_services="${package_services//redis/valkey}" || true # https://fedoraproject.org/wiki/Changes/Replace_Redis_With_Valkey 
