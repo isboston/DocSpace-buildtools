@@ -151,23 +151,3 @@ jobs:
             cd tests/vagrant
             sleep 10
             vagrant destroy --force
-
-      # --- собрать логи из гостевой VM в общий каталог репо (на хост) ---
-      - name: Collect logs from VM
-        if: always()
-        run: |
-          set -eux
-          mkdir -p _artifacts/${{ matrix.os }}
-          cd tests/vagrant
-          # Упакуем гостевые логи в /vagrant (shared folder -> попадёт в корень репо)
-          vagrant ssh -c "sudo tar czf /vagrant/_artifacts/${HOSTNAME:-vm}-${{ matrix.os }}-docspace-logs.tgz /tmp/docspace-logs || true"
-
-      # --- загрузить артефакт с логами ---
-      - name: Upload logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: docspace-logs-${{ matrix.os }}
-          path: _artifacts/**
-          if-no-files-found: ignore
-          retention-days: 7
