@@ -77,16 +77,9 @@ fi
 
 OPENRESTY_REPO_FILE=$( [[ "$REV" -ge 9 && "$DIST" != "fedora" ]] && echo "openresty2.repo" || echo "openresty.repo" )
 curl -fsSL -o /etc/yum.repos.d/openresty.repo "https://openresty.org/package/${OPENRESTY_DISTR_NAME}/${OPENRESTY_REPO_FILE}"
-# [ "$DIST" != "fedora" ] && [ "$REV" -ge 10 ] && sed -i 's|/centos/\$releasever/|/centos/9/|g' /etc/yum.repos.d/openresty.repo
+[ "$DIST" != "fedora" ] && [ "$REV" -ge 10 ] && sed -i 's|/centos/\$releasever/|/centos/9/|g' /etc/yum.repos.d/openresty.repo
 
-# rpm --import https://openresty.org/package/pubkey.gpg || {
-#   sed -i 's/^gpgcheck=.*/gpgcheck=0/' /etc/yum.repos.d/openresty.repo
-#   grep -q '^repo_gpgcheck=' /etc/yum.repos.d/openresty.repo || echo 'repo_gpgcheck=0' >> /etc/yum.repos.d/openresty.repo
-# }
-
-if [ "$DIST" = "centos" ] && [ "$REV" -ge 10 ] && [ -f /etc/yum.repos.d/openresty.repo ]; then
-  sed -i 's|/centos/\$releasever/|/centos/9/|g' /etc/yum.repos.d/openresty.repo
-
+if [ "$DIST" = "centos" ] && [ "$REV" -ge 10 ]; then
   if grep -q '^gpgcheck=1' /etc/yum.repos.d/openresty.repo; then
     sed -i 's/^gpgcheck=.*/gpgcheck=0/' /etc/yum.repos.d/openresty.repo
   fi
