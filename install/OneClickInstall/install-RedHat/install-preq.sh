@@ -94,29 +94,29 @@ ${package_manager} ${WEAK_OPT} -y install $([ "$DIST" != "fedora" ] && echo "epe
 			SDL2 \
 			expect \
 			java-${JAVA_VERSION}-openjdk-headless \
-			--enablerepo=opensearch-2.x --nogpgcheck
+			--enablerepo=opensearch-2.x ${DNF_NOGPG}
 
 # Set Java ${JAVA_VERSION} as the default version
 JAVA_PATH=$(find /usr/lib/jvm/ -name "java" -path "*java-${JAVA_VERSION}*" | head -1)
 alternatives --install /usr/bin/java java "$JAVA_PATH" 100 && alternatives --set java "$JAVA_PATH"
 
-# #add repo, install fluent-bit
-# if [ "${INSTALL_FLUENT_BIT}" == "true" ]; then 
-# 	[ "$DIST" != "fedora" ] && curl -fsSL https://raw.githubusercontent.com/fluent/fluent-bit/master/install.sh | bash || yum -y install fluent-bit
-# 	${package_manager} -y install opensearch-dashboards-"${DASHBOARDS_VERSION}" --enablerepo=opensearch-dashboards-2.x --nogpgcheck
-# fi
-
 #add repo, install fluent-bit
-if [ ${INSTALL_FLUENT_BIT} == "true" ]; then 
-	[ "$DIST" != "fedora" ] && {
-		if [ "$REV" = "10" ]; then
-			curl https://raw.githubusercontent.com/fluent/fluent-bit/master/install.sh | sed 's/\\$releasever/9/' | bash
-		else
-			curl https://raw.githubusercontent.com/fluent/fluent-bit/master/install.sh | bash
-		fi
-	} || yum -y install fluent-bit
-	${package_manager} -y install opensearch-dashboards-${DASHBOARDS_VERSION} --enablerepo=opensearch-dashboards-2.x --nogpgcheck
+if [ "${INSTALL_FLUENT_BIT}" == "true" ]; then 
+	[ "$DIST" != "fedora" ] && curl -fsSL https://raw.githubusercontent.com/fluent/fluent-bit/master/install.sh | bash || yum -y install fluent-bit
+	${package_manager} -y install opensearch-dashboards-"${DASHBOARDS_VERSION}" --enablerepo=opensearch-dashboards-2.x ${DNF_NOGPG}
 fi
+
+# #add repo, install fluent-bit
+# if [ ${INSTALL_FLUENT_BIT} == "true" ]; then 
+# 	[ "$DIST" != "fedora" ] && {
+# 		if [ "$REV" = "10" ]; then
+# 			curl https://raw.githubusercontent.com/fluent/fluent-bit/master/install.sh | sed 's/\\$releasever/9/' | bash
+# 		else
+# 			curl https://raw.githubusercontent.com/fluent/fluent-bit/master/install.sh | bash
+# 		fi
+# 	} || yum -y install fluent-bit
+# 	${package_manager} -y install opensearch-dashboards-${DASHBOARDS_VERSION} --enablerepo=opensearch-dashboards-2.x --nogpgcheck
+# fi
 
 if [[ $PSQLExitCode -eq $UPDATE_AVAILABLE_CODE ]]; then
 	yum -y install postgresql-upgrade
@@ -132,9 +132,6 @@ if ! command -v semanage &> /dev/null; then
 fi 
 
 semanage permissive -a httpd_t
-
-sudo systemctl disable --now cockpit.socket
-sudo systemctl stop cockpit.service || true
 
 package_services="rabbitmq-server postgresql ${REDIS_PACKAGE} mysqld"
 rpm -q valkey &>/dev/null && package_services="${package_services//redis/valkey}" || true # https://fedoraproject.org/wiki/Changes/Replace_Redis_With_Valkey 
