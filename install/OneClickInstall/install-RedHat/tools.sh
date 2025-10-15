@@ -80,7 +80,7 @@ if [ "$REV" = "10" ]; then
   yum -y install  "$APPSTREAM_PKGS/$(curl -fsSL "$APPSTREAM_PKGS/" | grep -oE 'libXScrnSaver-[0-9][^"]+\.x86_64\.rpm' | sort -V | tail -1)" \
                   "$APPSTREAM_PKGS/$(curl -fsSL "$APPSTREAM_PKGS/" | grep -oE 'xorg-x11-server-common-[0-9][^"]+\.x86_64\.rpm' | sort -V | tail -1)" \
                   "$APPSTREAM_PKGS/$(curl -fsSL "$APPSTREAM_PKGS/" | grep -oE 'xorg-x11-server-Xvfb-[0-9][^"]+\.x86_64\.rpm' | sort -V | tail -1)"
-  # Disable Cockpit because it occupies TCP/9090 required by docspace-identity-api
+  # Disable Cockpit to free 9090 needed by docspace-identity-api
   sudo systemctl disable --now cockpit.socket
   sudo systemctl stop cockpit.service || true
 fi
