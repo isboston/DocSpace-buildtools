@@ -106,18 +106,6 @@ if [ "${INSTALL_FLUENT_BIT}" == "true" ]; then
 	${package_manager} -y install opensearch-dashboards-"${DASHBOARDS_VERSION}" --enablerepo=opensearch-dashboards-2.x ${DNF_NOGPG}
 fi
 
-# #add repo, install fluent-bit
-# if [ ${INSTALL_FLUENT_BIT} == "true" ]; then 
-# 	[ "$DIST" != "fedora" ] && {
-# 		if [ "$REV" = "10" ]; then
-# 			curl https://raw.githubusercontent.com/fluent/fluent-bit/master/install.sh | sed 's/\\$releasever/9/' | bash
-# 		else
-# 			curl https://raw.githubusercontent.com/fluent/fluent-bit/master/install.sh | bash
-# 		fi
-# 	} || yum -y install fluent-bit
-# 	${package_manager} -y install opensearch-dashboards-${DASHBOARDS_VERSION} --enablerepo=opensearch-dashboards-2.x --nogpgcheck
-# fi
-
 if [[ $PSQLExitCode -eq $UPDATE_AVAILABLE_CODE ]]; then
 	yum -y install postgresql-upgrade
 	postgresql-setup --upgrade || true
