@@ -123,3 +123,8 @@ semanage permissive -a httpd_t
 
 package_services="rabbitmq-server postgresql ${REDIS_PACKAGE} mysqld"
 rpm -q valkey &>/dev/null && package_services="${package_services//redis/valkey}" || true # https://fedoraproject.org/wiki/Changes/Replace_Redis_With_Valkey 
+rpm -q libicu && rpm -q --whatrequires libicu || true
+sudo grep -q '^exclude=' /etc/dnf/dnf.conf \
+  && sudo sed -i 's/^exclude=.*/& libicu*/' /etc/dnf/dnf.conf \
+  || echo 'exclude=libicu*' | sudo tee -a /etc/dnf/dnf.conf
+sudo rpm -e --nodeps libicu
