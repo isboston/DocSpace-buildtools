@@ -92,7 +92,7 @@ if [ "$DOCUMENT_SERVER_INSTALLED" = "false" ]; then
 	fi
 
 	${package_manager} -y install ${ds_pkg_name}
-
+		
 expect << EOF
 	
 	set timeout -1
