@@ -220,7 +220,6 @@ function services_logs() {
     echo $LINE_SEPARATOR && echo "${COLOR_GREEN}Check logs for systemd service: $service${COLOR_RESET}" && echo $LINE_SEPARATOR   
     journalctl -u "$service" -n 30 || true
   done
-
   local DOCSPACE_LOGS_DIR="/var/log/onlyoffice/docspace"
   local DOCUMENTSERVER_LOGS_DIR="/var/log/onlyoffice/documentserver"
 
