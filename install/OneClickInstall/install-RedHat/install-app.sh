@@ -15,7 +15,10 @@ for SVC in $package_services; do
 		systemctl enable $SVC
 done
 
-ds_pkg_name="${package_sysname}-documentserver"
+# ds_pkg_name="${package_sysname}-documentserver"
+sudo yum-config-manager --add-repo https://s3.eu-west-1.amazonaws.com/repo-doc-onlyoffice-com/repo/centos/onlyoffice-dev-99.99.99.repo
+ds_pkg_name="onlyoffice-documentbuilder-99.99.99-4249.el7.x86_64"
+
 case "${INSTALLATION_TYPE}" in
 	"DEVELOPER") ds_pkg_name+="-de" ;;
 	"ENTERPRISE") ds_pkg_name+="-ee" ;;
