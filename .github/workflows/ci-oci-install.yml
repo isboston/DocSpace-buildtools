@@ -143,7 +143,7 @@ jobs:
             RAM='8192' \
             CPU='3' \
             DOWNLOAD_SCRIPT='-ds false' \
-            TEST_REPO='-tr true' \
+            TEST_REPO='-tr false' \
             ARGUMENTS="-arg '--skiphardwarecheck true --localscripts true'" \
             vagrant up --provider=virtualbox
           on_retry_command: |
