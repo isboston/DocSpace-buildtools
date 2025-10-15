@@ -71,14 +71,16 @@ RABBIT_DIST_NAME=$( [[ "$REV" == "10" ]] && echo "el" || echo "$DIST" )
 RABBIT_DIST_VER=$( [[ "$REV" == "10" ]] && echo "9" || echo "$REV" )
 ERLANG_DIST_NAME=$( [[ "$REV" == "10" ]] && echo "el" || echo "$DIST" )
 ERLANG_DIST_VER=$( [[ "$REV" == "10" ]] && echo "9" || echo "$REV" )
-# Temporary workaround for missing CentOS 10 repos
+
 if [ "$REV" = "10" ]; then
   OPENRESTY_REV="9"
   DNF_NOGPG="--nogpgcheck"
+  # Temporary workaround for missing CentOS 10 repos
   APPSTREAM_PKGS="https://mirror.stream.centos.org/9-stream/AppStream/x86_64/os/Packages"
   yum -y install  "$APPSTREAM_PKGS/$(curl -fsSL "$APPSTREAM_PKGS/" | grep -oE 'libXScrnSaver-[0-9][^"]+\.x86_64\.rpm' | sort -V | tail -1)" \
                   "$APPSTREAM_PKGS/$(curl -fsSL "$APPSTREAM_PKGS/" | grep -oE 'xorg-x11-server-common-[0-9][^"]+\.x86_64\.rpm' | sort -V | tail -1)" \
                   "$APPSTREAM_PKGS/$(curl -fsSL "$APPSTREAM_PKGS/" | grep -oE 'xorg-x11-server-Xvfb-[0-9][^"]+\.x86_64\.rpm' | sort -V | tail -1)"
+  # Disable Cockpit because it occupies TCP/9090 required by docspace-identity-api
   sudo systemctl disable --now cockpit.socket
   sudo systemctl stop cockpit.service || true
 fi
