@@ -90,13 +90,13 @@ if [ "$DOCUMENT_SERVER_INSTALLED" = "false" ]; then
 		su - postgres -s /bin/bash -c "psql -c \"CREATE USER ${DS_DB_USER} WITH password '${DS_DB_PWD}';\""
 		su - postgres -s /bin/bash -c "psql -c \"CREATE DATABASE ${DS_DB_NAME} OWNER ${DS_DB_USER};\""
 	fi
+	sudo mv /usr/lib64/libicudata.so.74 /usr/lib64/libicudata.so.74.bak || true
+    sudo mv /usr/lib64/libicuuc.so.74 /usr/lib64/libicuuc.so.74.bak || true
 	
-	# ${package_manager} -y install ${ds_pkg_name}
-	sudo dnf -y install rpmrebuild rpmdevtools
-	RPM="/path/to/onlyoffice-documentserver-9.1.0-168.el7.x86_64.rpm"; EDITOR='bash -c '\''sed -i -E "/^\/usr\/lib64\/libicu.*(\.so(\.|$)|\.so\.[0-9]+)$/d" "$1"'\''' rpmrebuild -pe "$RPM" 2>&1 | tee /tmp/oo.rebuild
-	sudo dnf -y install "$(grep -Eo "/[^ ]+rebuilt\.rpm" /tmp/oo.rebuild | tail -n1)"
+	${package_manager} -y install ${ds_pkg_name}
 
-	
+	echo "Restoring ICU libraries..."
+	sudo yum reinstall -y libicu || true
 expect << EOF
 	
 	set timeout -1
