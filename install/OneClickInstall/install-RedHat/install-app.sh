@@ -93,8 +93,6 @@ if [ "$DOCUMENT_SERVER_INSTALLED" = "false" ]; then
 
 	${package_manager} -y install ${ds_pkg_name}
 
-	echo "Restoring ICU libraries..."
-	sudo yum reinstall -y libicu || true
 expect << EOF
 	
 	set timeout -1
