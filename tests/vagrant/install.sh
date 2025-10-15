@@ -214,19 +214,22 @@ function healthcheck_systemd_services() {
 #############################################################################################
 function services_logs() {
   mapfile -t SERVICES_SYSTEMD < <(awk '/SERVICE_NAME=\(/{flag=1; next} /\)/{flag=0} flag' "build.sh" | sed -E 's/^[[:space:]]*|[[:space:]]*$//g; s/^/docspace-/; s/$/.service/')
-  SERVICES_SYSTEMD+=("ds-converter.service" "ds-docservice.service" "ds-metrics.service" "docspace-identity-api.service")
+  SERVICES_SYSTEMD+=("ds-converter.service" "ds-docservice.service" "ds-metrics.service")
 
   for service in "${SERVICES_SYSTEMD[@]}"; do
-    echo $LINE_SEPARATOR && echo "${COLOR_GREEN}Check logs for systemd service: $service${COLOR_RESET}" && echo $LINE_SEPARATOR
-    journalctl -u "$service" -b -n 1000 --no-pager -o short-iso | tee "$ART_DIR/${service}.journal.log" || true
-    systemctl status "$service" --no-pager -l | tee "$ART_DIR/${service}.status.txt" || true
+    echo $LINE_SEPARATOR && echo "${COLOR_GREEN}Check logs for systemd service: $service${COLOR_RESET}" && echo $LINE_SEPARATOR   
+    journalctl -u "$service" -n 30 || true
   done
 
-  for LOGS_DIR in /var/log/onlyoffice/docspace /var/log/onlyoffice/documentserver; do
-    echo $LINE_SEPARATOR && echo "${COLOR_YELLOW}Scan logs in $(basename "${LOGS_DIR}" | tr '[:lower:]' '[:upper:]')${COLOR_RESET}" && echo $LINE_SEPARATOR
-    find "${LOGS_DIR}" -type f -name "*.log" ! -name "*sql*" ! -name "*nginx*" -print0 | while IFS= read -r -d '' FILE; do
+  local DOCSPACE_LOGS_DIR="/var/log/onlyoffice/docspace"
+  local DOCUMENTSERVER_LOGS_DIR="/var/log/onlyoffice/documentserver"
+
+  for LOGS_DIR in "${DOCSPACE_LOGS_DIR}" "${DOCUMENTSERVER_LOGS_DIR}"; do
+    echo $LINE_SEPARATOR && echo "${COLOR_YELLOW}Check logs for $(basename "${LOGS_DIR}"| tr '[:lower:]' '[:upper:]') ${COLOR_RESET}" && echo $LINE_SEPARATOR
+
+    find "${LOGS_DIR}" -type f -name "*.log" ! -name "*sql*" ! -name "*nginx*" | while read -r FILE; do
       echo $LINE_SEPARATOR && echo "${COLOR_GREEN}Logs from file: ${FILE}${COLOR_RESET}" && echo $LINE_SEPARATOR
-      tail -n 300 "${FILE}" | tee "$ART_DIR/$(basename "${FILE}").tail.log" || true
+      tail -30 "${FILE}" || true
     done
   done
 }
