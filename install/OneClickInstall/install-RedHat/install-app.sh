@@ -15,9 +15,7 @@ for SVC in $package_services; do
 		systemctl enable $SVC
 done
 
-# ds_pkg_name="${package_sysname}-documentserver"
-sudo yum-config-manager --add-repo https://s3.eu-west-1.amazonaws.com/repo-doc-onlyoffice-com/repo/centos/onlyoffice-dev-99.99.99.repo
-ds_pkg_name="onlyoffice-documentbuilder-99.99.99-4249.el7.x86_64"
+ds_pkg_name="${package_sysname}-documentserver"
 
 case "${INSTALLATION_TYPE}" in
 	"DEVELOPER") ds_pkg_name+="-de" ;;
@@ -67,6 +65,8 @@ if [ "${MYSQL_FIRST_TIME_INSTALL}" = "true" ]; then
 		systemctl restart mysqld
 	fi
 fi
+
+sudo rpm -e --nodeps libicu
 
 if [ "$DOCUMENT_SERVER_INSTALLED" = "false" ]; then
 	declare -x DS_PORT=8083
