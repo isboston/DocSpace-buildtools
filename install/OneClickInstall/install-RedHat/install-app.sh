@@ -66,8 +66,6 @@ if [ "${MYSQL_FIRST_TIME_INSTALL}" = "true" ]; then
 	fi
 fi
 
-sudo rpm -e --nodeps libicu
-
 if [ "$DOCUMENT_SERVER_INSTALLED" = "false" ]; then
 	declare -x DS_PORT=8083
 
@@ -93,7 +91,11 @@ if [ "$DOCUMENT_SERVER_INSTALLED" = "false" ]; then
 		su - postgres -s /bin/bash -c "psql -c \"CREATE DATABASE ${DS_DB_NAME} OWNER ${DS_DB_USER};\""
 	fi
 	
-	${package_manager} -y install ${ds_pkg_name}
+	# ${package_manager} -y install ${ds_pkg_name}
+	sudo dnf -y install rpmrebuild rpmdevtools
+	RPM="/path/to/onlyoffice-documentserver-9.1.0-168.el7.x86_64.rpm"; EDITOR='bash -c '\''sed -i -E "/^\/usr\/lib64\/libicu.*(\.so(\.|$)|\.so\.[0-9]+)$/d" "$1"'\''' rpmrebuild -pe "$RPM" 2>&1 | tee /tmp/oo.rebuild
+	sudo dnf -y install "$(grep -Eo "/[^ ]+rebuilt\.rpm" /tmp/oo.rebuild | tail -n1)"
+
 	
 expect << EOF
 	
