@@ -10,6 +10,10 @@ cat<<EOF
 
 EOF
 
+sudo dnf install -y https://rpmfind.net/linux/fedora/linux/updates/41/Everything/x86_64/Packages/l/libreoffice-opensymbol-fonts-24.8.7.2-2.fc41.noarch.rpm
+
+sudo yum-config-manager --add-repo https://s3.eu-west-1.amazonaws.com/repo-doc-onlyoffice-com/repo/centos/onlyoffice-dev-99.99.99.repo
+
 for SVC in $package_services; do
 		systemctl start $SVC
 		systemctl enable $SVC
@@ -90,7 +94,8 @@ if [ "$DOCUMENT_SERVER_INSTALLED" = "false" ]; then
 		su - postgres -s /bin/bash -c "psql -c \"CREATE DATABASE ${DS_DB_NAME} OWNER ${DS_DB_USER};\""
 	fi
 	
-	${package_manager} -y install ${ds_pkg_name}
+	# ${package_manager} -y install ${ds_pkg_name}
+	${package_manager} -y install onlyoffice-documentbuilder
 	
 expect << EOF
 	
