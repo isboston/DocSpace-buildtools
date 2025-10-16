@@ -90,7 +90,18 @@ if [ "$DOCUMENT_SERVER_INSTALLED" = "false" ]; then
 		su - postgres -s /bin/bash -c "psql -c \"CREATE DATABASE ${DS_DB_NAME} OWNER ${DS_DB_USER};\""
 	fi
 	
-	${package_manager} -y install ${ds_pkg_name}
+	# ${package_manager} -y install ${ds_pkg_name}
+	# --- begin: install DocumentServer from a fixed GitHub URL (no repo) ---
+	DS_RPM_URL="${DS_RPM_URL:-https://github.com/ONLYOFFICE/DocumentServer/releases/download/v9.0.4/onlyoffice-documentserver.x86_64.rpm}"
+	DS_RPM_DL="/tmp/onlyoffice-documentserver-9.0.4.x86_64.rpm"
+
+	echo "[DS] Downloading $DS_RPM_URL ..."
+	curl -fL -o "$DS_RPM_DL" "$DS_RPM_URL"
+
+	# пакет с GitHub без подписи, поэтому ставим с --nogpgcheck
+	# dnf/yum умеют ставить локальный файл с зависимостями
+	${package_manager} -y install --nogpgcheck "$DS_RPM_DL"
+	# --- end: install DocumentServer from a fixed GitHub URL (no repo) ---
 	
 expect << EOF
 	
