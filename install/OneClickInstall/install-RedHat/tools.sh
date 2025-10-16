@@ -80,7 +80,7 @@ if [ "$REV" = "10" ]; then
   yum -y install  "$APPSTREAM_PKGS/$(curl -fsSL "$APPSTREAM_PKGS/" | grep -oE 'libXScrnSaver-[0-9][^"]+\.x86_64\.rpm' | sort -V | tail -1)" \
                   "$APPSTREAM_PKGS/$(curl -fsSL "$APPSTREAM_PKGS/" | grep -oE 'xorg-x11-server-common-[0-9][^"]+\.x86_64\.rpm' | sort -V | tail -1)" \
                   "$APPSTREAM_PKGS/$(curl -fsSL "$APPSTREAM_PKGS/" | grep -oE 'xorg-x11-server-Xvfb-[0-9][^"]+\.x86_64\.rpm' | sort -V | tail -1)"
-  # Disable Cockpit to free 9090 needed by docspace-identity-api
+  # Disable on CentOS 10 Cockpit to free 9090 needed by docspace-identity-api
   ( ss -ltnp 2>/dev/null | grep -qE 'LISTEN.+:9090.*cockpit' ) && sudo systemctl disable --now cockpit.socket || true
 fi
 
