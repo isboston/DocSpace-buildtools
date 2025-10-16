@@ -97,12 +97,22 @@ if [ "$DOCUMENT_SERVER_INSTALLED" = "false" ]; then
 	# ${package_manager} -y install ${ds_pkg_name}
 	${package_manager} -y install onlyoffice-documentbuilder
 	
+echo "== DEBUG: env & files after documentbuilder install =="
+echo "USER=$(id -un) UID=$(id -u) SHELL=$SHELL"
+echo "PATH=$PATH"
+command -v documentserver-configure.sh || echo "not in PATH"
+ls -l /usr/bin/documentserver-configure.sh || true
+file /usr/bin/documentserver-configure.sh || true
+head -n1 /usr/bin/documentserver-configure.sh || true
+rpm -ql onlyoffice-documentbuilder | grep -E 'documentserver-(configure|jwt|flush|static-gzip).*\.sh' || true
+echo "== END DEBUG =="
+
 expect << EOF
 	
 	set timeout -1
 	log_user 1
 	
-	spawn documentserver-configure.sh
+	spawn /usr/bin/documentserver-configure.sh
 	
 	expect "Configuring database access..."
 	
