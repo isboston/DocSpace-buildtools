@@ -81,14 +81,12 @@ if [ "$REV" = "10" ]; then
                   "$APPSTREAM_PKGS/$(curl -fsSL "$APPSTREAM_PKGS/" | grep -oE 'xorg-x11-server-common-[0-9][^"]+\.x86_64\.rpm' | sort -V | tail -1)" \
                   "$APPSTREAM_PKGS/$(curl -fsSL "$APPSTREAM_PKGS/" | grep -oE 'xorg-x11-server-Xvfb-[0-9][^"]+\.x86_64\.rpm' | sort -V | tail -1)"
   # Disable Cockpit to free 9090 needed by docspace-identity-api
-  sudo systemctl disable --now cockpit.socket
-  sudo systemctl stop cockpit.service || true
+  ( ss -ltnp 2>/dev/null | grep -qE 'LISTEN.+:9090.*cockpit' ) && sudo systemctl disable --now cockpit.socket || true
 fi
 
 if [ "$DIST" == "fedora" ]; then
 	REMI_DISTR_NAME="fedora"
 	RPMFUSION_DISTR_NAME="fedora"
-	# RABBIT_DIST_NAME="fedora"
 	MYSQL_DISTR_NAME="fc"
 	OPENRESTY_REV=$([ "$REV" -ge 37 ] && echo 36 || echo "$REV")
 

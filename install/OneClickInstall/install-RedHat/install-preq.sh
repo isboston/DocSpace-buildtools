@@ -75,10 +75,27 @@ module_hotfixes=true
 END
 fi
 
+# OPENRESTY_REPO_FILE=$( [[ "$REV" -ge 9 && "$DIST" != "fedora" ]] && echo "openresty2.repo" || echo "openresty.repo" )
+# curl -fsSL -o /etc/yum.repos.d/openresty.repo "https://openresty.org/package/${OPENRESTY_DISTR_NAME}/${OPENRESTY_REPO_FILE}"
+# [ -n "${OPENRESTY_REV}" ] && sed -i "s/\$releasever/$OPENRESTY_REV/g" /etc/yum.repos.d/openresty.repo
+# [ "$DIST" = "centos" ] && [ "$REV" -ge 10 ] && sed -i 's/^gpgcheck=.*/gpgcheck=0/' /etc/yum.repos.d/openresty.repo
+
+# OpenResty repo для EL>=9 (официальная рекомендация)
 OPENRESTY_REPO_FILE=$( [[ "$REV" -ge 9 && "$DIST" != "fedora" ]] && echo "openresty2.repo" || echo "openresty.repo" )
 curl -fsSL -o /etc/yum.repos.d/openresty.repo "https://openresty.org/package/${OPENRESTY_DISTR_NAME}/${OPENRESTY_REPO_FILE}"
-[ -n "${OPENRESTY_REV}" ] && sed -i "s/\$releasever/$OPENRESTY_REV/g" /etc/yum.repos.d/openresty.repo
-[ "$DIST" = "centos" ] && [ "$REV" -ge 10 ] && sed -i 's/^gpgcheck=.*/gpgcheck=0/' /etc/yum.repos.d/openresty.repo
+
+# Для CentOS Stream 10 пока фиксируемся на el9, сохраняя подписи
+if [ "$DIST" = "centos" ] && [ "$REV" -ge 10 ]; then
+  # подменяем $releasever на 9, чтобы брать стабильные el9 пакеты
+  sed -ri 's|/(centos|rhel)/\$releasever/|/\1/9/|g' /etc/yum.repos.d/openresty.repo
+  # гарантируем, что проверки включены
+  sed -ri 's/^gpgcheck=.*/gpgcheck=1/; s/^repo_gpgcheck=.*/repo_gpgcheck=1/' /etc/yum.repos.d/openresty.repo
+fi
+
+# Импорт ключа OpenResty (если ещё не установлен)
+rpm -q gpg-pubkey-$(rpm -qa gpg-pubkey | cut -d- -f3 | head -n1) >/dev/null 2>&1 || \
+  rpm --import https://openresty.org/package/pubkey.gpg
+
 
 JAVA_VERSION=21
 ${package_manager} ${WEAK_OPT} -y install $([ "$DIST" != "fedora" ] && echo "epel-release") \
