@@ -75,25 +75,10 @@ module_hotfixes=true
 END
 fi
 
-# OPENRESTY_REPO_FILE=$( [[ "$REV" -ge 9 && "$DIST" != "fedora" ]] && echo "openresty2.repo" || echo "openresty.repo" )
-# curl -fsSL -o /etc/yum.repos.d/openresty.repo "https://openresty.org/package/${OPENRESTY_DISTR_NAME}/${OPENRESTY_REPO_FILE}"
-# [ -n "${OPENRESTY_REV}" ] && sed -i "s/\$releasever/$OPENRESTY_REV/g" /etc/yum.repos.d/openresty.repo
-# [ "$DIST" = "centos" ] && [ "$REV" -ge 10 ] && sed -i 's/^gpgcheck=.*/gpgcheck=0/' /etc/yum.repos.d/openresty.repo
-
 OPENRESTY_REPO_FILE=$( [[ "$REV" -ge 9 && "$DIST" != "fedora" ]] && echo "openresty2.repo" || echo "openresty.repo" )
 curl -fsSL -o /etc/yum.repos.d/openresty.repo "https://openresty.org/package/${OPENRESTY_DISTR_NAME}/${OPENRESTY_REPO_FILE}"
-
-if [ "$DIST" = "centos" ] && [ "$REV" -ge 10 ]; then
-  # TEMP workaround for CentOS Stream 10 (see comment below)
-  sed -i 's#/centos/\$releasever/#/centos/9/#g' /etc/yum.repos.d/openresty.repo
-  sed -i 's#/rhel/\$releasever/#/rhel/9/#g'       /etc/yum.repos.d/openresty.repo
-  # keep signature checks ON
-  sed -i 's/^gpgcheck=.*/gpgcheck=1/'             /etc/yum.repos.d/openresty.repo
-  sed -i 's/^repo_gpgcheck=.*/repo_gpgcheck=1/'   /etc/yum.repos.d/openresty.repo
-  # ensure the key is present
-  rpm -qi gpg-pubkey >/dev/null 2>&1 || rpm --import https://openresty.org/package/pubkey.gpg
-fi
-
+[ -n "${OPENRESTY_REV}" ] && sed -i "s/\$releasever/$OPENRESTY_REV/g" /etc/yum.repos.d/openresty.repo
+[ "$DIST" = "centos" ] && [ "$REV" -ge 10 ] && sed -i 's/^gpgcheck=.*/gpgcheck=0/' /etc/yum.repos.d/openresty.repo
 
 JAVA_VERSION=21
 ${package_manager} ${WEAK_OPT} -y install $([ "$DIST" != "fedora" ] && echo "epel-release") \
