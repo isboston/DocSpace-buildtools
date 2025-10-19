@@ -97,8 +97,8 @@ esac
   rm -rf /home/vagrant/*
   [ -d /tmp/docspace ] && mv /tmp/docspace/* /home/vagrant
 
-  echo '127.0.0.1 host4test' | sudo tee -a /etc/hosts   
-  echo "${COLOR_GREEN}[OK] PREPARE_VM: Hostname was setting up${COLOR_RESET}"   
+  echo '127.0.0.1 host4test' | sudo tee -a /etc/hosts
+  echo "${COLOR_GREEN}[OK] PREPARE_VM: Hostname was setting up${COLOR_RESET}"
 }
 
 install_docspace() {
@@ -128,10 +128,10 @@ services_logs() {
   SERVICES_SYSTEMD+=("ds-converter.service" "ds-docservice.service" "ds-metrics.service")
 
   for service in "${SERVICES_SYSTEMD[@]}"; do
-    echo $LINE_SEPARATOR && echo "${COLOR_GREEN}Check logs for systemd service: $service${COLOR_RESET}" && echo $LINE_SEPARATOR   
+    echo $LINE_SEPARATOR && echo "${COLOR_GREEN}Check logs for systemd service: $service${COLOR_RESET}" && echo $LINE_SEPARATOR
     journalctl -u "$service" -n 30 || true
   done
-  
+
   local DOCSPACE_LOGS_DIR="/var/log/onlyoffice/docspace"
   local DOCUMENTSERVER_LOGS_DIR="/var/log/onlyoffice/documentserver"
 
