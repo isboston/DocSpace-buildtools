@@ -86,8 +86,7 @@ esac
 
     if [[ "$ID" == "debian" ]]; then
       if dpkg -s postfix &>/dev/null; then
-        apt-get remove -y postfix \
-          && echo "${COLOR_GREEN}[OK] PREPARE_VM: Postfix was removed${COLOR_RESET}"
+        apt-get remove -y postfix && echo "${COLOR_GREEN}[OK] PREPARE_VM: Postfix was removed${COLOR_RESET}"
       fi
     fi
   else
