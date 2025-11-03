@@ -28,16 +28,49 @@ jobs:
           sudo chmod +x /usr/local/bin/yq
 
       - name: Update OS list in README
-        working-directory: .
         run: |
-          OS_LIST=$(yq -r '.jobs.prepare.steps[] | select(.name == "Set matrix names") | .run' .github/workflows/ci-oci-install.yml \
-            | grep -oP '"name"\s*:\s*"\K[^"]+' \
-            | sed 's/^/- /')
-          {
-            echo '<!-- OS-SUPPORT-LIST-START -->'
-            echo "$OS_LIST"
-            echo '<!-- OS-SUPPORT-LIST-END -->'
+          set -euo pipefail
+
+          FILE='.github/workflows/ci-oci-install.yml'
+
+          # 1) Пытаемся вытащить JSON из env.OS_MAP шага "Set matrix names"
+          OS_MAP_JSON=$(yq -r '.jobs.prepare.steps[] | select(.name == "Set matrix names") | .env.OS_MAP // ""' "$FILE" | tr -d '\r')
+
+          if [ -n "$OS_MAP_JSON" ] && echo "$OS_MAP_JSON" | jq -e . >/dev/null 2>&1; then
+            # ✓ Современный путь: читаем имена из OS_MAP (нулевой элемент массива)
+            OS_LIST=$(printf '%s\n' "$OS_MAP_JSON" \
+              | jq -r 'to_entries | map(.value[0])[]' \
+              | sed '/^\s*$/d' \
+              | awk 'NF{print "- "$0}')
+          else
+            # ↩︎ Fallback: старая логика — выдираем из текста .run
+            RUN_BLOCK=$(yq -r '.jobs.prepare.steps[] | select(.name == "Set matrix names") | .run // ""' "$FILE" | tr -d '\r')
+
+            # Пытаемся сначала JSON-формат: "name":"..."
+            OS_LIST=$(printf '%s\n' "$RUN_BLOCK" \
+              | grep -oP '"name"\s*:\s*"\K[^"]+' || true)
+
+            # Если пусто — пробуем YAML-формат: name: ...
+            if [ -z "$OS_LIST" ]; then
+              OS_LIST=$(printf '%s\n' "$RUN_BLOCK" \
+                | grep -oP '^\s*name\s*:\s*\K.*' || true)
+            fi
+
+            OS_LIST=$(printf '%s\n' "$OS_LIST" \
+              | sed '/^\s*$/d' \
+              | awk 'NF{print "- "$0}')
+          fi
+
+          if [ -z "$OS_LIST" ]; then
+            echo "::error:: OS list is empty. Check OS_MAP or .run format" >&2
+            exit 1
+          fi
+
+          { printf '<!-- OS-SUPPORT-LIST-START -->\n'
+            printf '%s\n' "$OS_LIST"
+            printf '<!-- OS-SUPPORT-LIST-END -->\n'
           } > os_block.tmp
+
           awk '
             BEGIN {in_block=0}
             /<!-- OS-SUPPORT-LIST-START -->/ {while ((getline line < "os_block.tmp")>0) print line; in_block=1; next}
@@ -45,7 +78,7 @@ jobs:
             !in_block {print}
           ' install/OneClickInstall/README.md > README.new \
           && mv README.new install/OneClickInstall/README.md
-          rm os_block.tmp
+          rm -f os_block.tmp
 
       - name: Commit changes (if any)
         working-directory: .
