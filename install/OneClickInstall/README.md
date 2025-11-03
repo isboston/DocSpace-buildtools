@@ -51,6 +51,13 @@ Replace `<script-name>` with the appropriate script file as used in Step 2.
 The installation scripts support the following operating systems, which are **regularly tested** as part of our CI/CD pipelines:
 
 <!-- OS-SUPPORT-LIST-START -->
-
+- RHEL 9
+- CentOS 9sTest
+- Debian 11
+- Debian 12
+- Debian 13
+- Ubuntu 21.04
+- Ubuntu 24.04
+- Fedora 42
 <!-- OS-SUPPORT-LIST-END -->
 
