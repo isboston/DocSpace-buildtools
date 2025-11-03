@@ -45,7 +45,7 @@ jobs:
               "ubuntu2204": ["Ubuntu 22", "onlyoffice",   "base-ubuntu2204"],
               "ubuntu2404": ["Ubuntu 24.04", "onlyoffice",   "base-ubuntu2404"],
               "ubuntu2504": ["Ubuntu 25.04", "onlyoffice",   "base-ubuntu2404"],
-              "fedora42":   ["Fedora 42",    "onlyoffice",   "base-fedora42"]
+              "fedora42":   ["Fedora 43",    "onlyoffice",   "base-fedora42"]
             }
         run: |
           OS_INPUT="${{ github.event.inputs.os }}"
