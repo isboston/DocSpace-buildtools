@@ -52,11 +52,11 @@ The installation scripts support the following operating systems, which are **re
 
 <!-- OS-SUPPORT-LIST-START -->
 - RHEL 9
-- CentOS 9sTest
+- CentOS 9s
 - Debian 11
 - Debian 12
 - Debian 13
-- Ubuntu 21.04
+- Ubuntu 22.04
 - Ubuntu 24.04
 - Fedora 42
 <!-- OS-SUPPORT-LIST-END -->
