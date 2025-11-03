@@ -55,10 +55,10 @@ The installation scripts support the following operating systems, which are **re
 - CentOS 9s
 - Debian 11
 - Debian 12
-- Debian 14
 - Debian 13
-- Ubuntu 22.04
+- Ubuntu 22
 - Ubuntu 24.04
-- Fedora 42
+- Ubuntu 25.04
+- Fedora 43
 <!-- OS-SUPPORT-LIST-END -->
 
