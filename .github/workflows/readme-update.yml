@@ -28,7 +28,7 @@ jobs:
           sudo chmod +x /usr/local/bin/yq
 
       - name: Update OS list in README
-        working-directory: ${{ github.event.repository.name }}
+        working-directory: .
         run: |
           OS_LIST=$(yq -r '.jobs.prepare.steps[] | select(.name == "Set matrix names") | .env.OS_MAP' .github/workflows/ci-oci-install.yml \
             | jq -r 'to_entries | map(.value[0])[]' \
@@ -47,7 +47,7 @@ jobs:
           && mv README.new install/OneClickInstall/README.md
           rm os_block.tmp
       - name: Commit changes (if any)
-        working-directory: ${{ github.event.repository.name }}
+        working-directory: .
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
