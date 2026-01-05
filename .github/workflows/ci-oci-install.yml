@@ -113,7 +113,7 @@ jobs:
         if: ${{ github.event_name == 'schedule' }}
         uses: nick-fields/retry@v3
         with:
-          max_attempts: 2
+          max_attempts: 1
           timeout_minutes: 80
           retry_on: error
           command: |
@@ -137,7 +137,7 @@ jobs:
         if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' }}
         uses: nick-fields/retry@v3
         with:
-          max_attempts: 2
+          max_attempts: 1
           timeout_minutes: 80
           retry_on: error
           command: |
