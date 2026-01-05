@@ -89,6 +89,12 @@ curl -fsSL -o /etc/yum.repos.d/openresty.repo "https://openresty.org/package/${O
 # Temporary disable GPG checks OpenResty key may fail CentOS 10
 [ "$DIST" = "centos" ] && [ "$REV" -ge 10 ] && sed -i 's/^gpgcheck=.*/gpgcheck=0/' /etc/yum.repos.d/openresty.repo
 
+# Force Redis 6 on EL8 (RHEL 8 / CentOS 8) to satisfy DocSpace Identity requirements
+if [ "$REDIS_PACKAGE" = "redis" ] && [ "$REV" = "8" ] && [ "$DIST" != "fedora" ]; then
+  dnf -y module reset redis || true
+  dnf -y module enable redis:6
+fi
+
 JAVA_VERSION=21
 ${package_manager} ${WEAK_OPT} -y install $([ "$DIST" != "fedora" ] && echo "epel-release") \
 			python3 \
