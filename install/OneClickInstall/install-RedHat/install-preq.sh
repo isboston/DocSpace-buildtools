@@ -89,16 +89,6 @@ curl -fsSL -o /etc/yum.repos.d/openresty.repo "https://openresty.org/package/${O
 # Temporary disable GPG checks OpenResty key may fail CentOS 10
 [ "$DIST" = "centos" ] && [ "$REV" -ge 10 ] && sed -i 's/^gpgcheck=.*/gpgcheck=0/' /etc/yum.repos.d/openresty.repo
 
-if [ "$REV" = "8" ]; then
-  dnf -y install https://download1.rpmfusion.org/free/el/rpmfusion-free-release-8.noarch.rpm
-  dnf -y install /usr/bin/ffmpeg
-
-  echo "### DEBUG: ffmpeg"
-  dnf -q repoquery --whatprovides /usr/bin/ffmpeg --qf '%{repoid} -> %{name}-%{version}-%{release}.%{arch}' | head -n 50 || true
-  command -v ffmpeg && ffmpeg -version | head || true
-  rpm -q --whatprovides /usr/bin/ffmpeg || true
-fi
-
 JAVA_VERSION=21
 ${package_manager} ${WEAK_OPT} -y install $([ "$DIST" != "fedora" ] && echo "epel-release") \
 			python3 \
@@ -114,6 +104,15 @@ ${package_manager} ${WEAK_OPT} -y install $([ "$DIST" != "fedora" ] && echo "epe
 			expect \
 			java-${JAVA_VERSION}-openjdk-headless \
 			--enablerepo=opensearch-2.x ${DNF_NOGPG}
+
+if [ "$REV" = "8" ]; then
+  dnf -y install https://download1.rpmfusion.org/free/el/rpmfusion-free-release-8.noarch.rpm
+  dnf -y install /usr/bin/ffmpeg
+
+  echo "### DEBUG: ffmpeg"
+  command -v ffmpeg && ffmpeg -version | head || true
+  rpm -q --whatprovides /usr/bin/ffmpeg || true
+fi
 
 # Set Java ${JAVA_VERSION} as the default version
 JAVA_PATH=$(find /usr/lib/jvm/ -name "java" -path "*java-${JAVA_VERSION}*" | head -1)
