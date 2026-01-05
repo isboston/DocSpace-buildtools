@@ -62,6 +62,47 @@ case $ID in
   centos|fedora|rhel)
       [[ "${TEST_REPO_ENABLE}" == 'true' ]] && add-repo-rpm
 
+        if [ "$ID" = "rhel" ] && [ "${VERSION_ID%%.*}" = "8" ]; then
+          cat <<'EOF' | sudo tee /etc/yum.repos.d/centos-stream-8.repo
+[centos8s-baseos]
+name=CentOS Stream 8 - BaseOS (vault)
+baseurl=https://dl.rockylinux.org/vault/centos/8-stream/BaseOS/x86_64/os/
+enabled=1
+gpgcheck=0
+
+[centos8s-appstream]
+name=CentOS Stream 8 - AppStream (vault)
+baseurl=https://dl.rockylinux.org/vault/centos/8-stream/AppStream/x86_64/os/
+enabled=1
+gpgcheck=0
+
+[centos8s-powertools]
+name=CentOS Stream 8 - PowerTools (vault)
+baseurl=https://dl.rockylinux.org/vault/centos/8-stream/PowerTools/x86_64/os/
+enabled=1
+gpgcheck=0
+
+[centos8s-extras]
+name=CentOS Stream 8 - Extras (vault)
+baseurl=https://dl.rockylinux.org/vault/centos/8-stream/extras/x86_64/os/
+enabled=1
+gpgcheck=0
+EOF
+      fi
+
+      # --- ADD THIS BLOCK: RHEL 8 dotnet-sdk-10.0 provider repo (CI only) ---
+      if [ "$ID" = "rhel" ] && [ "${VERSION_ID%%.*}" = "8" ]; then
+          cat <<'EOF' | sudo tee /etc/yum.repos.d/ol8-appstream-dotnet.repo
+[ol8_appstream_dotnet]
+name=Oracle Linux 8 - AppStream (dotnet)
+baseurl=https://yum.oracle.com/repo/OracleLinux/OL8/appstream/x86_64/
+enabled=0
+gpgcheck=0
+EOF
+          sudo dnf -y install dotnet-sdk-10.0 --enablerepo=ol8_appstream_dotnet
+      fi
+      # --- END BLOCK ---
+
       if [ "$ID" = "rhel" ] && [ "${VERSION_ID%%.*}" = "9" ]; then
           cat <<'EOF' | sudo tee /etc/yum.repos.d/centos-stream-9.repo
 [centos9s-baseos]
