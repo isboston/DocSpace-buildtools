@@ -75,18 +75,6 @@ name=CentOS Stream 8 - AppStream (vault)
 baseurl=https://dl.rockylinux.org/vault/centos/8-stream/AppStream/x86_64/os/
 enabled=1
 gpgcheck=0
-
-[centos8s-powertools]
-name=CentOS Stream 8 - PowerTools (vault)
-baseurl=https://dl.rockylinux.org/vault/centos/8-stream/PowerTools/x86_64/os/
-enabled=1
-gpgcheck=0
-
-[centos8s-extras]
-name=CentOS Stream 8 - Extras (vault)
-baseurl=https://dl.rockylinux.org/vault/centos/8-stream/extras/x86_64/os/
-enabled=1
-gpgcheck=0
 EOF
       fi
 
@@ -99,7 +87,7 @@ baseurl=https://yum.oracle.com/repo/OracleLinux/OL8/appstream/x86_64/
 enabled=0
 gpgcheck=0
 EOF
-          sudo dnf -y install dotnet-sdk-10.0 --enablerepo=ol8_appstream_dotnet
+          # sudo dnf -y install dotnet-sdk-10.0 --enablerepo=ol8_appstream_dotnet
       fi
       # --- END BLOCK ---
 
