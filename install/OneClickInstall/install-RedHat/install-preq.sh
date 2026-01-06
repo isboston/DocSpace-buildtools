@@ -105,6 +105,8 @@ if command -v redis-server >/dev/null 2>&1; then
   redis-server -v | grep -qE 'v=6\.' || { echo "ERROR: Redis 6.x required on EL8"; exit 1; }
 fi
 
+systemctl restart redis || true
+
 JAVA_VERSION=21
 ${package_manager} ${WEAK_OPT} -y install $([ "$DIST" != "fedora" ] && echo "epel-release") \
 			python3 \

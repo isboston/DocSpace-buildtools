@@ -13,6 +13,93 @@ done
 
 export TERM=xterm-256color
 
+# --- minimal debug bundle (prints only on failure) ---
+on_fail_debug() {
+  rc=$?
+  [ "$rc" -eq 0 ] && exit 0
+
+  echo
+  echo "#########################################"
+  echo "# DEBUG (script failed), rc=$rc"
+  echo "#########################################"
+  echo
+
+  echo "### /etc/os-release"
+  cat /etc/os-release || true
+  echo
+  echo "### uname -a"
+  uname -a || true
+  echo
+  echo "### SELinux"
+  (command -v getenforce >/dev/null 2>&1 && getenforce) || echo "n/a"
+  echo
+  echo "### systemd failed units"
+  systemctl --failed --no-pager || true
+
+  if command -v dnf >/dev/null 2>&1; then
+    echo
+    echo "### dnf repolist --enabled"
+    dnf repolist --enabled || true
+    echo
+    echo "### dnf module list redis (enabled)"
+    dnf -y module list redis --enabled || true
+  fi
+
+  if command -v rpm >/dev/null 2>&1; then
+    echo
+    echo "### packages: redis/valkey"
+    rpm -q redis valkey || true
+  fi
+
+  echo
+  echo "### redis service / port"
+  systemctl status redis --no-pager -l || true
+  ss -lntp | egrep '(:6379|:6380)' || true
+
+  if command -v redis-cli >/dev/null 2>&1; then
+    echo
+    echo "### redis-cli PING"
+    redis-cli -h 127.0.0.1 -p 6379 PING || true
+    echo
+    echo "### redis-cli HELLO 3 (should work for Redis >= 6)"
+    redis-cli -h 127.0.0.1 -p 6379 HELLO 3 || true
+    echo
+    echo "### redis-cli INFO server"
+    redis-cli -h 127.0.0.1 -p 6379 INFO server | egrep 'redis_version|tcp_port' || true
+  fi
+
+  echo
+  echo "### /etc/redis.conf key lines"
+  [ -f /etc/redis.conf ] && egrep -n '^(bind|port|protected-mode|requirepass|aclfile|user )' /etc/redis.conf || true
+  [ -f /etc/redis.conf.rpmnew ] && echo "NOTE: /etc/redis.conf.rpmnew exists"
+
+  echo
+  echo "### identity services status/logs"
+  for s in docspace-identity-api docspace-identity-authorization docspace-identity-registration; do
+    echo
+    echo "---- systemctl status $s ----"
+    systemctl status "$s" --no-pager -l || true
+    echo
+    echo "---- journalctl -u $s -n 200 ----"
+    journalctl -u "$s" -n 200 --no-pager || true
+  done
+
+  echo
+  echo "### DocSpace logs (tail 200): /var/log/onlyoffice/docspace/identity-*.log"
+  if [ -d /var/log/onlyoffice/docspace ]; then
+    for f in /var/log/onlyoffice/docspace/identity-*.log; do
+      [ -f "$f" ] || continue
+      echo
+      echo "---- $f ----"
+      tail -n 200 "$f" || true
+    done
+  fi
+
+  exit "$rc"
+}
+trap on_fail_debug EXIT
+# --- end debug bundle ---
+
 get_colors() {
     export LINE_SEPARATOR="-----------------------------------------"
     export COLOR_BLUE=$'\e[34m' COLOR_GREEN=$'\e[32m' COLOR_RED=$'\e[31m' COLOR_RESET=$'\e[0m' COLOR_YELLOW=$'\e[33m'
