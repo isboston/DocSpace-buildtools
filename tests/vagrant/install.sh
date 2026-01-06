@@ -95,6 +95,59 @@ on_fail_debug() {
     done
   fi
 
+  echo
+  echo "### Java runtime (CLI)"
+  command -v java >/dev/null 2>&1 && {
+    echo "which java: $(command -v java)"
+    readlink -f "$(command -v java)" || true
+    java -version 2>&1 || true
+  } || echo "java: not found"
+
+  if command -v alternatives >/dev/null 2>&1; then
+    echo
+    echo "### alternatives --display java"
+    alternatives --display java || true
+  fi
+
+  echo
+  echo "### Identity unit files (systemd cat)"
+  for s in docspace-identity-api docspace-identity-authorization; do
+    echo
+    echo "---- systemctl cat $s ----"
+    systemctl cat "$s" --no-pager || true
+
+    echo
+    echo "---- parsed ExecStart / Environment ($s) ----"
+    systemctl show "$s" -p ExecStart -p Environment -p EnvironmentFiles --no-pager || true
+  done
+
+  echo
+  echo "### Check jar classfile version (first main class found)"
+  for jar in \
+    /var/www/docspace/services/ASC.Identity.Registration/app.jar \
+    /var/www/docspace/services/ASC.Identity.Authorization/app.jar \
+    /var/www/docspace/services/ASC.Identity.Api/app.jar \
+    /var/www/docspace/services/ASC.Identity.Registration/app.jar; do
+
+    [ -f "$jar" ] || continue
+    echo
+    echo "---- $jar ----"
+    ls -la "$jar" || true
+
+    if command -v jar >/dev/null 2>&1; then
+      main_class="$(jar tf "$jar" 2>/dev/null | grep -E '\.class$' | head -n 1 | sed 's|/|.|g; s|\.class$||')"
+      echo "sample class: ${main_class:-n/a}"
+      if [ -n "$main_class" ] && command -v javap >/dev/null 2>&1; then
+        echo "javap -verbose (major version):"
+        javap -verbose -classpath "$jar" "$main_class" 2>/dev/null | egrep -m1 'major version' || true
+      else
+        echo "javap not available or no class found"
+      fi
+    else
+      echo "jar tool not available"
+    fi
+  done
+
   exit "$rc"
 }
 trap on_fail_debug EXIT

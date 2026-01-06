@@ -128,9 +128,24 @@ if [ "$REV" = "8" ]; then
   dnf -y install /usr/bin/ffmpeg
 fi
 
-# Set Java ${JAVA_VERSION} as the default version
-JAVA_PATH=$(find /usr/lib/jvm/ -name "java" -path "*java-${JAVA_VERSION}*" | head -1)
-alternatives --install /usr/bin/java java "$JAVA_PATH" 100 && alternatives --set java "$JAVA_PATH"
+# Set Java ${JAVA_VERSION} as the default version (DocSpace identity requires Java 21)
+JAVA_PATH="$(ls -1 /usr/lib/jvm/java-${JAVA_VERSION}-openjdk*/bin/java 2>/dev/null | head -n 1)"
+if [ -z "$JAVA_PATH" ]; then
+  echo "ERROR: Java ${JAVA_VERSION} not found in /usr/lib/jvm (java-${JAVA_VERSION}-openjdk*)"
+  ls -la /usr/lib/jvm/ || true
+  exit 1
+fi
+
+alternatives --install /usr/bin/java java "$JAVA_PATH" 21000 || true
+alternatives --set java "$JAVA_PATH"
+
+# Verify runtime really is Java ${JAVA_VERSION}
+java -version 2>&1 | head -n 1
+java -version 2>&1 | grep -qE "version \"${JAVA_VERSION}\." || {
+  echo "ERROR: /usr/bin/java is not Java ${JAVA_VERSION}"
+  alternatives --display java || true
+  exit 1
+}
 
 #add repo, install fluent-bit
 if [ "${INSTALL_FLUENT_BIT}" == "true" ]; then 
