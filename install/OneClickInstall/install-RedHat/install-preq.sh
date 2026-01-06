@@ -93,6 +93,16 @@ curl -fsSL -o /etc/yum.repos.d/openresty.repo "https://openresty.org/package/${O
 if [ "$REDIS_PACKAGE" = "redis" ] && [ "$REV" = "8" ] && [ "$DIST" != "fedora" ]; then
   dnf -y module reset redis || true
   dnf -y module enable redis:6
+
+  # IMPORTANT: enable doesn't upgrade already installed redis
+  if rpm -q redis >/dev/null 2>&1; then
+    dnf -y distro-sync redis\* --allowerasing || dnf -y upgrade redis\*
+  fi
+fi
+
+if command -v redis-server >/dev/null 2>&1; then
+  redis-server -v
+  redis-server -v | grep -qE 'v=6\.' || { echo "ERROR: Redis 6.x required on EL8"; exit 1; }
 fi
 
 JAVA_VERSION=21
@@ -114,10 +124,6 @@ ${package_manager} ${WEAK_OPT} -y install $([ "$DIST" != "fedora" ] && echo "epe
 if [ "$REV" = "8" ]; then
   dnf -y install https://download1.rpmfusion.org/free/el/rpmfusion-free-release-8.noarch.rpm
   dnf -y install /usr/bin/ffmpeg
-
-  echo "### DEBUG: ffmpeg"
-  command -v ffmpeg && ffmpeg -version | head || true
-  rpm -q --whatprovides /usr/bin/ffmpeg || true
 fi
 
 # Set Java ${JAVA_VERSION} as the default version
